@@ -1,4 +1,4 @@
-package com.gvsu.ApparealApp;
+package com.incidentiq;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
