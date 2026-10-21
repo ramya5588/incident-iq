@@ -10,9 +10,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class IncidentExceptionHandler {
 
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ApiError> handleUserNotFound(
-            UserNotFoundException exception) {
+    @ExceptionHandler({
+            UserNotFoundException.class,
+            IncidentNotFoundException.class
+    })
+    public ResponseEntity<ApiError> handleNotFound(
+            RuntimeException exception) {
 
         ApiError error = new ApiError(
                 Instant.now(),

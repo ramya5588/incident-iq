@@ -1,10 +1,14 @@
 package com.incidentiq.incident;
 
+import java.util.UUID;
+
 import com.incidentiq.user.UserAccount;
 import com.incidentiq.user.UserAccountRepository;
 
 import jakarta.persistence.EntityManager;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,9 +52,35 @@ public class IncidentService {
 
         Incident savedIncident = incidentRepository.saveAndFlush(incident);
 
-        // Reload database-generated values such as incident_number.
         entityManager.refresh(savedIncident);
 
         return IncidentResponse.from(savedIncident);
+    }
+
+    @Transactional(readOnly = true)
+    public IncidentResponse getIncident(UUID incidentId) {
+        Incident incident = incidentRepository.findById(incidentId)
+                .orElseThrow(() -> new IncidentNotFoundException(incidentId));
+
+        return IncidentResponse.from(incident);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<IncidentResponse> getIncidents(
+            IncidentStatus status,
+            IncidentPriority priority,
+            Pageable pageable) {
+
+        Page<Incident> incidents;
+
+        if (status != null) {
+            incidents = incidentRepository.findAllByStatus(status, pageable);
+        } else if (priority != null) {
+            incidents = incidentRepository.findAllByPriority(priority, pageable);
+        } else {
+            incidents = incidentRepository.findAll(pageable);
+        }
+
+        return incidents.map(IncidentResponse::from);
     }
 }
