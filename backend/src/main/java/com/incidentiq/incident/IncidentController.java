@@ -53,4 +53,11 @@ public class IncidentController {
 
         return service.getIncidents(status, priority, pageable);
     }
+
+    @PostMapping("/{incidentId}/triage")
+    public IncidentResponse triageIncident(
+            @PathVariable UUID incidentId) {
+
+        return service.triageIncident(incidentId);
+    }
 }

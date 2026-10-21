@@ -15,6 +15,9 @@ public record IncidentResponse(
         UUID assignedToId,
         String aiSummary,
         IncidentPriority aiSuggestedPriority,
+        String aiSuggestedCategory,
+        String aiReasoning,
+        Instant aiTriagedAt,
         Instant createdAt,
         Instant updatedAt,
         Instant resolvedAt) {
@@ -34,6 +37,9 @@ public record IncidentResponse(
                         : incident.getAssignedTo().getId(),
                 incident.getAiSummary(),
                 incident.getAiSuggestedPriority(),
+                incident.getAiSuggestedCategory(),
+                incident.getAiReasoning(),
+                incident.getAiTriagedAt(),
                 incident.getCreatedAt(),
                 incident.getUpdatedAt(),
                 incident.getResolvedAt());

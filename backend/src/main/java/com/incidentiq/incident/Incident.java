@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.incidentiq.user.UserAccount;
+import com.incidentiq.ai.TriageResult;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -61,6 +62,14 @@ public class Incident {
     @Enumerated(EnumType.STRING)
     @Column(name = "ai_suggested_priority", length = 20)
     private IncidentPriority aiSuggestedPriority;
+    @Column(name = "ai_suggested_category", length = 100)
+    private String aiSuggestedCategory;
+
+    @Column(name = "ai_reasoning", columnDefinition = "TEXT")
+    private String aiReasoning;
+
+    @Column(name = "ai_triaged_at")
+    private Instant aiTriagedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -94,6 +103,14 @@ public class Incident {
         Instant now = Instant.now();
         createdAt = now;
         updatedAt = now;
+    }
+
+    public void applyAiTriage(TriageResult result) {
+        this.aiSummary = result.summary();
+        this.aiSuggestedCategory = result.category();
+        this.aiSuggestedPriority = result.suggestedPriority();
+        this.aiReasoning = result.reasoning();
+        this.aiTriagedAt = Instant.now();
     }
 
     @PreUpdate
@@ -143,6 +160,18 @@ public class Incident {
 
     public IncidentPriority getAiSuggestedPriority() {
         return aiSuggestedPriority;
+    }
+
+    public String getAiSuggestedCategory() {
+        return aiSuggestedCategory;
+    }
+
+    public String getAiReasoning() {
+        return aiReasoning;
+    }
+
+    public Instant getAiTriagedAt() {
+        return aiTriagedAt;
     }
 
     public Instant getCreatedAt() {

@@ -2,6 +2,8 @@ package com.incidentiq.incident;
 
 import java.util.UUID;
 
+import com.incidentiq.ai.IncidentTriageClient;
+import com.incidentiq.ai.TriageResult;
 import com.incidentiq.user.UserAccount;
 import com.incidentiq.user.UserAccountRepository;
 
@@ -18,15 +20,18 @@ public class IncidentService {
     private final IncidentRepository incidentRepository;
     private final UserAccountRepository userRepository;
     private final EntityManager entityManager;
+    private final IncidentTriageClient triageClient;
 
     public IncidentService(
             IncidentRepository incidentRepository,
             UserAccountRepository userRepository,
-            EntityManager entityManager) {
+            EntityManager entityManager,
+            IncidentTriageClient triageClient) {
 
         this.incidentRepository = incidentRepository;
         this.userRepository = userRepository;
         this.entityManager = entityManager;
+        this.triageClient = triageClient;
     }
 
     @Transactional
@@ -53,6 +58,22 @@ public class IncidentService {
         Incident savedIncident = incidentRepository.saveAndFlush(incident);
 
         entityManager.refresh(savedIncident);
+
+        return IncidentResponse.from(savedIncident);
+    }
+
+    @Transactional
+    public IncidentResponse triageIncident(UUID incidentId) {
+        Incident incident = incidentRepository.findById(incidentId)
+                .orElseThrow(() -> new IncidentNotFoundException(incidentId));
+
+        TriageResult result = triageClient.triage(
+                incident.getTitle(),
+                incident.getDescription());
+
+        incident.applyAiTriage(result);
+
+        Incident savedIncident = incidentRepository.saveAndFlush(incident);
 
         return IncidentResponse.from(savedIncident);
     }
