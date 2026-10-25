@@ -1,35 +1,56 @@
+import { useEffect, useState } from 'react'
+import { getIncidents } from './services/incidentApi'
 import './App.css'
 
-const incidents = [
-  {
-    number: 'INC-001',
-    title: 'Users cannot sign in after deployment',
-    category: 'Authentication',
-    priority: 'HIGH',
-    status: 'OPEN',
-  },
-  {
-    number: 'INC-002',
-    title: 'Payment service response time is elevated',
-    category: 'Performance',
-    priority: 'CRITICAL',
-    status: 'IN_PROGRESS',
-  },
-  {
-    number: 'INC-003',
-    title: 'Email notifications are delayed',
-    category: 'Messaging',
-    priority: 'MEDIUM',
-    status: 'RESOLVED',
-  },
-]
-
 function App() {
+  const [incidents, setIncidents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const openIncidentCount = incidents.filter(
+    (incident) => incident.status === 'OPEN'
+  ).length
+  const inProgressCount = incidents.filter(
+    (incident) => incident.status === 'IN_PROGRESS'
+  ).length
+  const today = new Date().toISOString().slice(0, 10)
+
+  const resolvedTodayCount = incidents.filter(
+    (incident) =>
+      incident.status === 'RESOLVED' &&
+      incident.resolvedAt?.slice(0, 10) === today
+  ).length
+  const aiTriagedCount = incidents.filter(
+    (incident) => incident.aiTriagedAt
+  ).length
+
+  const aiTriagedPercentage =
+    incidents.length === 0
+      ? 0
+      : Math.round((aiTriagedCount / incidents.length) * 100)
+
+  useEffect(() => {
+    async function loadIncidents() {
+      try {
+        const data = await getIncidents()
+        setIncidents(data)
+      } catch (requestError) {
+        console.error(requestError)
+        setError('Unable to load incidents from the backend.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadIncidents()
+  }, [])
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">IQ</span>
+
           <div>
             <strong>IncidentIQ</strong>
             <small>Intelligent Operations</small>
@@ -45,6 +66,7 @@ function App() {
 
         <div className="sidebar-footer">
           <span className="avatar">RN</span>
+
           <div>
             <strong>Ramya Navuluri</strong>
             <small>Administrator</small>
@@ -57,7 +79,9 @@ function App() {
           <div>
             <p className="eyebrow">OPERATIONS OVERVIEW</p>
             <h1>Incident dashboard</h1>
-            <p>Monitor incidents and accelerate resolution with AI triage.</p>
+            <p>
+              Monitor incidents and accelerate resolution with AI triage.
+            </p>
           </div>
 
           <button className="primary-button">+ New incident</button>
@@ -66,26 +90,27 @@ function App() {
         <section className="stats-grid">
           <article className="stat-card">
             <span>Open incidents</span>
-            <strong>12</strong>
-            <small>3 require attention</small>
+            <strong>{openIncidentCount}</strong>
+            <small>Live data from the backend</small>
           </article>
 
           <article className="stat-card">
             <span>In progress</span>
-            <strong>7</strong>
-            <small>Across 4 agents</small>
+            <strong>{inProgressCount}</strong>
+            <small>Live data from the backend</small>
           </article>
+
 
           <article className="stat-card">
             <span>Resolved today</span>
-            <strong>18</strong>
-            <small>12% above average</small>
+            <strong>{resolvedTodayCount}</strong>
+            <small>Live data from the backend</small>
           </article>
 
           <article className="stat-card accent-card">
             <span>AI triaged</span>
-            <strong>94%</strong>
-            <small>of incoming incidents</small>
+            <strong>{aiTriagedPercentage}%</strong>
+            <small>of loaded incidents</small>
           </article>
         </section>
 
@@ -95,6 +120,7 @@ function App() {
               <h2>Recent incidents</h2>
               <p>Latest incidents across your support environment</p>
             </div>
+
             <button className="secondary-button">View all</button>
           </div>
 
@@ -106,21 +132,46 @@ function App() {
               <span>Status</span>
             </div>
 
-            {incidents.map((incident) => (
-              <div className="table-row" key={incident.number}>
-                <div>
-                  <strong>{incident.title}</strong>
-                  <small>{incident.number}</small>
-                </div>
-                <span>{incident.category}</span>
-                <span className={`badge ${incident.priority.toLowerCase()}`}>
-                  {incident.priority}
-                </span>
-                <span className="status">
-                  {incident.status.replace('_', ' ')}
-                </span>
+            {loading && (
+              <div className="table-message">Loading incidents...</div>
+            )}
+
+            {error && (
+              <div className="table-message error-message">{error}</div>
+            )}
+
+            {!loading && !error && incidents.length === 0 && (
+              <div className="table-message">
+                No incidents have been created yet.
               </div>
-            ))}
+            )}
+
+            {!loading &&
+              !error &&
+              incidents.map((incident) => (
+                <div className="table-row" key={incident.id}>
+                  <div>
+                    <strong>{incident.title}</strong>
+                    <small>
+                      INC-{String(incident.incidentNumber).padStart(3, '0')}
+                    </small>
+                  </div>
+
+                  <span>{incident.category}</span>
+
+                  <span
+                    className={`badge ${(
+                      incident.priority ?? 'medium'
+                    ).toLowerCase()}`}
+                  >
+                    {incident.priority}
+                  </span>
+
+                  <span className="status">
+                    {(incident.status ?? 'OPEN').replaceAll('_', ' ')}
+                  </span>
+                </div>
+              ))}
           </div>
         </section>
       </main>
