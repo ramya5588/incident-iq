@@ -152,6 +152,7 @@ function IncidentsList() {
               <span>Category</span>
               <span>Priority</span>
               <span>Status</span>
+              <span>Assignee</span>
               <span>Created</span>
             </div>
 
@@ -197,6 +198,14 @@ function IncidentsList() {
 
                   <span className="status">
                     {(incident.status ?? 'OPEN').replaceAll('_', ' ')}
+                  </span>
+
+                  <span
+                    className={
+                      incident.assignedToName ? 'assignee' : 'assignee unassigned'
+                    }
+                  >
+                    {incident.assignedToName ?? 'Unassigned'}
                   </span>
 
                   <span className="created-at">

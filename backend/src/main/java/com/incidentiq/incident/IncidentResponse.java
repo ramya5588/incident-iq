@@ -13,6 +13,7 @@ public record IncidentResponse(
         String category,
         UUID createdById,
         UUID assignedToId,
+        String assignedToName,
         String aiSummary,
         IncidentPriority aiSuggestedPriority,
         String aiSuggestedCategory,
@@ -35,6 +36,9 @@ public record IncidentResponse(
                 incident.getAssignedTo() == null
                         ? null
                         : incident.getAssignedTo().getId(),
+                incident.getAssignedTo() == null
+                        ? null
+                        : incident.getAssignedTo().getDisplayName(),
                 incident.getAiSummary(),
                 incident.getAiSuggestedPriority(),
                 incident.getAiSuggestedCategory(),

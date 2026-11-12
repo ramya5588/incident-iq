@@ -92,6 +92,25 @@ public class IncidentService {
                 incidentRepository.saveAndFlush(incident));
     }
 
+    @Transactional
+    public IncidentResponse updateAssignee(
+            UUID incidentId,
+            UpdateIncidentAssigneeRequest request) {
+
+        Incident incident = incidentRepository.findById(incidentId)
+                .orElseThrow(() -> new IncidentNotFoundException(incidentId));
+
+        UserAccount assignee = request.assigneeId() == null
+                ? null
+                : userRepository.findById(request.assigneeId())
+                        .orElseThrow(() -> new UserNotFoundException(request.assigneeId()));
+
+        incident.assignTo(assignee);
+
+        return IncidentResponse.from(
+                incidentRepository.saveAndFlush(incident));
+    }
+
     @Transactional(readOnly = true)
     public IncidentResponse getIncident(UUID incidentId) {
         Incident incident = incidentRepository.findById(incidentId)

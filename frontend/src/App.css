@@ -136,7 +136,19 @@ a.nav-item {
 }
 
 .table-row.list-row {
-  grid-template-columns: 2.2fr 1fr 0.8fr 0.9fr 0.9fr;
+  grid-template-columns: 2.2fr 1fr 0.8fr 0.9fr 1fr 0.9fr;
+}
+
+.assignee {
+  color: #344054;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.assignee.unassigned {
+  color: #98a2b3;
+  font-weight: 500;
+  font-style: italic;
 }
 
 .created-at {

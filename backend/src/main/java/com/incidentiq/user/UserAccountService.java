@@ -1,7 +1,9 @@
 package com.incidentiq.user;
 
+import java.util.List;
 import java.util.Locale;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,6 +14,14 @@ public class UserAccountService {
 
     public UserAccountService(UserAccountRepository repository) {
         this.repository = repository;
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserResponse> getUsers() {
+        return repository.findAll(Sort.by("displayName"))
+                .stream()
+                .map(UserResponse::from)
+                .toList();
     }
 
     @Transactional

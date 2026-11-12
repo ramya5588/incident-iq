@@ -35,6 +35,18 @@ export async function triageIncident(id) {
     return response.data
 }
 
+export async function updateIncidentAssignee(id, assigneeId) {
+    const response = await api.patch(`/incidents/${id}/assignee`, {
+        assigneeId: assigneeId || null,
+    })
+    return response.data
+}
+
+export async function getUsers() {
+    const response = await api.get('/users')
+    return response.data
+}
+
 export async function updateIncidentStatus(id, status) {
     const response = await api.patch(`/incidents/${id}/status`, { status })
     return response.data

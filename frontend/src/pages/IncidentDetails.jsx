@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
     getIncidentById,
+    getUsers,
     triageIncident,
+    updateIncidentAssignee,
     updateIncidentStatus,
 } from '../services/incidentApi'
 
@@ -25,6 +27,25 @@ function IncidentDetails() {
     const [updatingStatus, setUpdatingStatus] = useState(false)
     const [statusError, setStatusError] = useState('')
     const [statusMessage, setStatusMessage] = useState('')
+    const [users, setUsers] = useState([])
+    const [usersError, setUsersError] = useState('')
+    const [selectedAssignee, setSelectedAssignee] = useState('')
+    const [updatingAssignee, setUpdatingAssignee] = useState(false)
+    const [assigneeError, setAssigneeError] = useState('')
+    const [assigneeMessage, setAssigneeMessage] = useState('')
+
+    useEffect(() => {
+        async function loadUsers() {
+            try {
+                setUsers(await getUsers())
+            } catch (requestError) {
+                console.error(requestError)
+                setUsersError('Unable to load users for assignment.')
+            }
+        }
+
+        loadUsers()
+    }, [])
 
     useEffect(() => {
         async function loadIncident() {
@@ -32,6 +53,7 @@ function IncidentDetails() {
                 const data = await getIncidentById(id)
                 setIncident(data)
                 setSelectedStatus(data.status)
+                setSelectedAssignee(data.assignedToId ?? '')
             } catch (requestError) {
                 console.error(requestError)
                 setError('Unable to load this incident.')
@@ -73,6 +95,32 @@ function IncidentDetails() {
             setStatusError('Unable to update the status. Please try again.')
         } finally {
             setUpdatingStatus(false)
+        }
+    }
+
+    async function handleAssigneeUpdate(event) {
+        event.preventDefault()
+        setUpdatingAssignee(true)
+        setAssigneeError('')
+        setAssigneeMessage('')
+
+        try {
+            const updatedIncident = await updateIncidentAssignee(
+                id,
+                selectedAssignee
+            )
+            setIncident(updatedIncident)
+            setSelectedAssignee(updatedIncident.assignedToId ?? '')
+            setAssigneeMessage(
+                updatedIncident.assignedToName
+                    ? `Assigned to ${updatedIncident.assignedToName}.`
+                    : 'Incident unassigned.'
+            )
+        } catch (requestError) {
+            console.error(requestError)
+            setAssigneeError('Unable to update the assignee. Please try again.')
+        } finally {
+            setUpdatingAssignee(false)
         }
     }
 
@@ -143,6 +191,48 @@ function IncidentDetails() {
                 )}
                 {statusError && (
                     <p className="error-message">{statusError}</p>
+                )}
+
+                <form className="status-form" onSubmit={handleAssigneeUpdate}>
+                    <label htmlFor="incident-assignee">
+                        <strong>Assigned to:</strong>
+                    </label>
+                    <select
+                        id="incident-assignee"
+                        value={selectedAssignee}
+                        onChange={(event) => {
+                            setSelectedAssignee(event.target.value)
+                            setAssigneeMessage('')
+                        }}
+                        disabled={updatingAssignee || usersError !== ''}
+                    >
+                        <option value="">Unassigned</option>
+                        {users.map((user) => (
+                            <option key={user.id} value={user.id}>
+                                {user.displayName}
+                                {user.role !== 'USER'
+                                    ? ` (${user.role.toLowerCase()})`
+                                    : ''}
+                            </option>
+                        ))}
+                    </select>
+                    <button
+                        className="secondary-button"
+                        type="submit"
+                        disabled={
+                            updatingAssignee ||
+                            selectedAssignee === (incident.assignedToId ?? '')
+                        }
+                    >
+                        {updatingAssignee ? 'Saving...' : 'Update assignee'}
+                    </button>
+                </form>
+
+                {assigneeMessage && (
+                    <p className="status-message">{assigneeMessage}</p>
+                )}
+                {(assigneeError || usersError) && (
+                    <p className="error-message">{assigneeError || usersError}</p>
                 )}
 
                 {incident.resolvedAt && (

@@ -113,6 +113,10 @@ public class Incident {
         this.aiTriagedAt = Instant.now();
     }
 
+    public void assignTo(UserAccount assignee) {
+        this.assignedTo = assignee;
+    }
+
     public void updateStatus(IncidentStatus status) {
         this.status = status;
 
