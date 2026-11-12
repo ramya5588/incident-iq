@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
     getIncidentById,
-    getUsers,
     triageIncident,
     updateIncidentAssignee,
     updateIncidentStatus,
 } from '../services/incidentApi'
 import IncidentTimeline from '../components/IncidentTimeline'
+import { useCurrentUser } from '../context/currentUserContext'
 
 const STATUS_OPTIONS = [
     { value: 'OPEN', label: 'Open' },
@@ -28,27 +28,13 @@ function IncidentDetails() {
     const [updatingStatus, setUpdatingStatus] = useState(false)
     const [statusError, setStatusError] = useState('')
     const [statusMessage, setStatusMessage] = useState('')
-    const [users, setUsers] = useState([])
-    const [usersError, setUsersError] = useState('')
+    const { users, usersError } = useCurrentUser()
     const [selectedAssignee, setSelectedAssignee] = useState('')
     const [updatingAssignee, setUpdatingAssignee] = useState(false)
     const [assigneeError, setAssigneeError] = useState('')
     const [assigneeMessage, setAssigneeMessage] = useState('')
     const [timelineKey, setTimelineKey] = useState(0)
     const refreshTimeline = () => setTimelineKey((key) => key + 1)
-
-    useEffect(() => {
-        async function loadUsers() {
-            try {
-                setUsers(await getUsers())
-            } catch (requestError) {
-                console.error(requestError)
-                setUsersError('Unable to load users for assignment.')
-            }
-        }
-
-        loadUsers()
-    }, [])
 
     useEffect(() => {
         async function loadIncident() {
@@ -293,11 +279,7 @@ function IncidentDetails() {
                 </section>
             )}
 
-            <IncidentTimeline
-                incidentId={id}
-                users={users}
-                refreshKey={timelineKey}
-            />
+            <IncidentTimeline incidentId={id} refreshKey={timelineKey} />
         </main>
     )
 }

@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react'
-import {
-  createIncident,
-  describeApiError,
-  getUsers,
-} from '../services/incidentApi'
-import { DEFAULT_USER_ID } from '../config'
+import { createIncident, describeApiError } from '../services/incidentApi'
+import { useCurrentUser } from '../context/currentUserContext'
 
 const EMPTY_INCIDENT = {
   title: '',
@@ -15,27 +11,12 @@ const EMPTY_INCIDENT = {
 
 function CreateIncidentModal({ onClose, onCreated }) {
   const [incident, setIncident] = useState(EMPTY_INCIDENT)
-  const [users, setUsers] = useState([])
-  const [reporterId, setReporterId] = useState('')
+  const { users, usersError, currentUser } = useCurrentUser()
+  // '' means "whoever you're acting as"; set only if picked explicitly.
+  const [pickedReporterId, setPickedReporterId] = useState('')
+  const reporterId = pickedReporterId || currentUser?.id || ''
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
-
-  useEffect(() => {
-    async function loadUsers() {
-      try {
-        const data = await getUsers()
-        setUsers(data)
-        const preferred =
-          data.find((user) => user.id === DEFAULT_USER_ID) ?? data[0]
-        setReporterId(preferred?.id ?? '')
-      } catch (requestError) {
-        console.error(requestError)
-        setFormError('Unable to load users. You can still try again later.')
-      }
-    }
-
-    loadUsers()
-  }, [])
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -161,10 +142,14 @@ function CreateIncidentModal({ onClose, onCreated }) {
             Reported by
             <select
               value={reporterId}
-              onChange={(event) => setReporterId(event.target.value)}
+              onChange={(event) => setPickedReporterId(event.target.value)}
               required
             >
-              {users.length === 0 && <option value="">Loading users…</option>}
+              {users.length === 0 && (
+                <option value="">
+                  {usersError ? 'Users unavailable' : 'Loading users…'}
+                </option>
+              )}
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.displayName}
@@ -173,7 +158,9 @@ function CreateIncidentModal({ onClose, onCreated }) {
             </select>
           </label>
 
-          {formError && <p className="error-message">{formError}</p>}
+          {(formError || usersError) && (
+            <p className="error-message">{formError || usersError}</p>
+          )}
 
           <div className="form-actions">
             <button

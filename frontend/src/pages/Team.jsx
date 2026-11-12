@@ -6,6 +6,8 @@ import {
   getUsers,
   getWorkload,
 } from '../services/incidentApi'
+import { useCurrentUser } from '../context/currentUserContext'
+import { initials } from '../utils/initials'
 
 const ROLE_OPTIONS = [
   { value: 'USER', label: 'User' },
@@ -15,16 +17,8 @@ const ROLE_OPTIONS = [
 
 const EMPTY_MEMBER = { displayName: '', email: '', role: 'AGENT' }
 
-function initials(name) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join('')
-}
-
 function Team() {
+  const { addUser } = useCurrentUser()
   const [users, setUsers] = useState([])
   const [workload, setWorkload] = useState({})
   const [loading, setLoading] = useState(true)
@@ -77,6 +71,7 @@ function Team() {
           a.displayName.localeCompare(b.displayName)
         )
       )
+      addUser(created)
       setNewMember(EMPTY_MEMBER)
       setShowAddForm(false)
       setFormMessage(`${created.displayName} was added to the team.`)

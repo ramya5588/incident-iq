@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   getIncidentPage,
   getIncidentStats,
+  getUsers,
 } from './services/incidentApi'
+import { CURRENT_USER_STORAGE_KEY, DEFAULT_USER_ID } from './config'
+import { CurrentUserContext } from './context/currentUserContext'
 import './App.css'
 import { Link, Routes, Route, useNavigate } from 'react-router-dom'
 import IncidentDetails from './pages/IncidentDetails'
@@ -179,9 +182,63 @@ function Dashboard() {
   )
 }
 
+function readStoredUserId() {
+  try {
+    return window.localStorage.getItem(CURRENT_USER_STORAGE_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
 function App() {
   const navigate = useNavigate()
   const [showCreateIncident, setShowCreateIncident] = useState(false)
+
+  const [users, setUsers] = useState([])
+  const [usersError, setUsersError] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState(readStoredUserId)
+
+  useEffect(() => {
+    async function loadUsers() {
+      try {
+        setUsers(await getUsers())
+      } catch (requestError) {
+        console.error(requestError)
+        setUsersError('Unable to load users.')
+      }
+    }
+
+    loadUsers()
+  }, [])
+
+  // Fall back to the default admin (or anyone) if the stored user is gone.
+  const currentUser =
+    users.find((user) => user.id === selectedUserId) ??
+    users.find((user) => user.id === DEFAULT_USER_ID) ??
+    users[0] ??
+    null
+
+  const setCurrentUserId = useCallback((userId) => {
+    setSelectedUserId(userId)
+    try {
+      window.localStorage.setItem(CURRENT_USER_STORAGE_KEY, userId)
+    } catch {
+      // Storage unavailable (private mode etc.): keep it for this tab only.
+    }
+  }, [])
+
+  const addUser = useCallback((user) => {
+    setUsers((current) =>
+      [...current, user].sort((a, b) =>
+        a.displayName.localeCompare(b.displayName)
+      )
+    )
+  }, [])
+
+  const currentUserValue = useMemo(
+    () => ({ users, usersError, currentUser, setCurrentUserId, addUser }),
+    [users, usersError, currentUser, setCurrentUserId, addUser]
+  )
 
   const openCreateIncident = useCallback(() => setShowCreateIncident(true), [])
   const closeCreateIncident = useCallback(
@@ -200,21 +257,23 @@ function App() {
   }
 
   return (
-    <CreateIncidentContext.Provider value={contextValue}>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/incidents" element={<IncidentsList />} />
-        <Route path="/incidents/:id" element={<IncidentDetails />} />
-        <Route path="/team" element={<Team />} />
-      </Routes>
+    <CurrentUserContext.Provider value={currentUserValue}>
+      <CreateIncidentContext.Provider value={contextValue}>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/incidents" element={<IncidentsList />} />
+          <Route path="/incidents/:id" element={<IncidentDetails />} />
+          <Route path="/team" element={<Team />} />
+        </Routes>
 
-      {showCreateIncident && (
-        <CreateIncidentModal
-          onClose={closeCreateIncident}
-          onCreated={handleCreated}
-        />
-      )}
-    </CreateIncidentContext.Provider>
+        {showCreateIncident && (
+          <CreateIncidentModal
+            onClose={closeCreateIncident}
+            onCreated={handleCreated}
+          />
+        )}
+      </CreateIncidentContext.Provider>
+    </CurrentUserContext.Provider>
   )
 }
 

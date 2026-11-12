@@ -187,6 +187,35 @@ a.nav-item {
   border-top: 1px solid #334155;
 }
 
+.sidebar-footer .acting-as {
+  flex: 1;
+  min-width: 0;
+}
+
+.acting-as label {
+  color: #94a3b8;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.acting-as select {
+  width: 100%;
+  margin-top: 2px;
+  padding: 4px 6px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #1e293b;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.acting-as select:focus {
+  outline: 2px solid #818cf8;
+  outline-offset: 1px;
+}
+
 .avatar {
   display: grid;
   place-items: center;

@@ -4,7 +4,7 @@ import {
   describeApiError,
   getIncidentEvents,
 } from '../services/incidentApi'
-import { DEFAULT_USER_ID } from '../config'
+import { useCurrentUser } from '../context/currentUserContext'
 
 const STATUS_LABELS = {
   OPEN: 'Open',
@@ -53,7 +53,8 @@ function describeEvent(event) {
  * Activity timeline for an incident with a comment box.
  * Bump `refreshKey` to reload after the incident changes elsewhere.
  */
-function IncidentTimeline({ incidentId, users, refreshKey }) {
+function IncidentTimeline({ incidentId, refreshKey }) {
+  const { users, currentUser } = useCurrentUser()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -63,10 +64,8 @@ function IncidentTimeline({ incidentId, users, refreshKey }) {
   const [posting, setPosting] = useState(false)
   const [postError, setPostError] = useState('')
 
-  const effectiveAuthorId =
-    authorId ||
-    (users.find((user) => user.id === DEFAULT_USER_ID) ?? users[0])?.id ||
-    ''
+  // Defaults to whoever you're acting as; '' until picked explicitly.
+  const effectiveAuthorId = authorId || currentUser?.id || ''
 
   useEffect(() => {
     let cancelled = false
