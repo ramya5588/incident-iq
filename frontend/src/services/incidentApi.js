@@ -7,6 +7,21 @@ const api = axios.create({
     },
 })
 
+// Who changes are made as ("Acting as" in the sidebar). Sent as X-User-Id
+// so the backend can attribute timeline events. Not authentication.
+let actingUserId = null
+
+export function setActingUserId(userId) {
+    actingUserId = userId || null
+}
+
+api.interceptors.request.use((config) => {
+    if (actingUserId) {
+        config.headers['X-User-Id'] = actingUserId
+    }
+    return config
+})
+
 export async function getIncidentPage({ status, priority, page = 0, size = 10 } = {}) {
     const params = { page, size }
     if (status) params.status = status

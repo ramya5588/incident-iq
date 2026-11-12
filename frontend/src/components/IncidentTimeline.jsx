@@ -28,20 +28,31 @@ function formatTime(value) {
 
 function describeEvent(event) {
   const actor = event.actorName ?? 'Someone'
+  // Older events (and API calls without X-User-Id) have no actor.
+  const by = event.actorName ? `${event.actorName} ` : ''
 
   switch (event.type) {
     case 'CREATED':
       return `${actor} reported this incident`
     case 'STATUS_CHANGED':
-      return `Status changed from ${statusLabel(event.fromValue)} to ${statusLabel(event.toValue)}`
+      return by
+        ? `${by}changed status from ${statusLabel(event.fromValue)} to ${statusLabel(event.toValue)}`
+        : `Status changed from ${statusLabel(event.fromValue)} to ${statusLabel(event.toValue)}`
     case 'ASSIGNEE_CHANGED':
       if (event.fromValue && event.toValue) {
-        return `Reassigned from ${event.fromValue} to ${event.toValue}`
+        return by
+          ? `${by}reassigned from ${event.fromValue} to ${event.toValue}`
+          : `Reassigned from ${event.fromValue} to ${event.toValue}`
       }
-      if (event.toValue) return `Assigned to ${event.toValue}`
-      return `Unassigned from ${event.fromValue ?? 'previous assignee'}`
+      if (event.toValue) {
+        if (event.actorName === event.toValue) return `${by}took this incident`
+        return by ? `${by}assigned ${event.toValue}` : `Assigned to ${event.toValue}`
+      }
+      return by
+        ? `${by}unassigned ${event.fromValue ?? 'the previous assignee'}`
+        : `Unassigned from ${event.fromValue ?? 'previous assignee'}`
     case 'AI_TRIAGED':
-      return 'AI triage ran'
+      return by ? `${by}ran AI triage` : 'AI triage ran'
     case 'COMMENT':
       return `${actor} commented`
     default:

@@ -3,6 +3,7 @@ import {
   getIncidentPage,
   getIncidentStats,
   getUsers,
+  setActingUserId,
 } from './services/incidentApi'
 import { CURRENT_USER_STORAGE_KEY, DEFAULT_USER_ID } from './config'
 import { CurrentUserContext } from './context/currentUserContext'
@@ -217,6 +218,11 @@ function App() {
     users.find((user) => user.id === DEFAULT_USER_ID) ??
     users[0] ??
     null
+
+  const currentUserId = currentUser?.id ?? null
+  useEffect(() => {
+    setActingUserId(currentUserId)
+  }, [currentUserId])
 
   const setCurrentUserId = useCallback((userId) => {
     setSelectedUserId(userId)

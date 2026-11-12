@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -72,17 +73,19 @@ public class IncidentController {
 
     @PostMapping("/{incidentId}/triage")
     public IncidentResponse triageIncident(
-            @PathVariable UUID incidentId) {
+            @PathVariable UUID incidentId,
+            @RequestHeader(name = ActorHeader.NAME, required = false) UUID actorId) {
 
-        return service.triageIncident(incidentId);
+        return service.triageIncident(incidentId, actorId);
     }
 
     @PatchMapping("/{incidentId}/status")
     public IncidentResponse updateStatus(
             @PathVariable UUID incidentId,
-            @Valid @RequestBody UpdateIncidentStatusRequest request) {
+            @Valid @RequestBody UpdateIncidentStatusRequest request,
+            @RequestHeader(name = ActorHeader.NAME, required = false) UUID actorId) {
 
-        return service.updateStatus(incidentId, request);
+        return service.updateStatus(incidentId, request, actorId);
     }
 
     @GetMapping("/{incidentId}/events")
@@ -105,8 +108,9 @@ public class IncidentController {
     @PatchMapping("/{incidentId}/assignee")
     public IncidentResponse updateAssignee(
             @PathVariable UUID incidentId,
-            @RequestBody UpdateIncidentAssigneeRequest request) {
+            @RequestBody UpdateIncidentAssigneeRequest request,
+            @RequestHeader(name = ActorHeader.NAME, required = false) UUID actorId) {
 
-        return service.updateAssignee(incidentId, request);
+        return service.updateAssignee(incidentId, request, actorId);
     }
 }

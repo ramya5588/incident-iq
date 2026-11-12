@@ -78,27 +78,34 @@ public class IncidentEvent {
                 incident, IncidentEventType.CREATED, null, null, null, creator);
     }
 
+    /** {@code actor} may be null when the caller didn't say who they are. */
     public static IncidentEvent statusChanged(
-            Incident incident, IncidentStatus from, IncidentStatus to) {
+            Incident incident, IncidentStatus from, IncidentStatus to,
+            UserAccount actor) {
 
         return new IncidentEvent(
                 incident, IncidentEventType.STATUS_CHANGED,
-                from.name(), to.name(), null, null);
+                from.name(), to.name(), null, actor);
     }
 
+    /** {@code actor} may be null when the caller didn't say who they are. */
     public static IncidentEvent assigneeChanged(
-            Incident incident, UserAccount from, UserAccount to) {
+            Incident incident, UserAccount from, UserAccount to,
+            UserAccount actor) {
 
         return new IncidentEvent(
                 incident, IncidentEventType.ASSIGNEE_CHANGED,
                 from == null ? null : from.getDisplayName(),
                 to == null ? null : to.getDisplayName(),
-                null, null);
+                null, actor);
     }
 
-    public static IncidentEvent aiTriaged(Incident incident, String summary) {
+    /** {@code actor} is who ran triage, or null if unknown. */
+    public static IncidentEvent aiTriaged(
+            Incident incident, String summary, UserAccount actor) {
+
         return new IncidentEvent(
-                incident, IncidentEventType.AI_TRIAGED, null, null, summary, null);
+                incident, IncidentEventType.AI_TRIAGED, null, null, summary, actor);
     }
 
     public static IncidentEvent comment(

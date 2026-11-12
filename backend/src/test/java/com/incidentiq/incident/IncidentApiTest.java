@@ -502,4 +502,93 @@ class IncidentApiTest {
         mockMvc.perform(get("/api/incidents").param("size", "2").param("page", "1"))
                 .andExpect(jsonPath("$.content.length()").value(1));
     }
+
+    // --- acting user (X-User-Id) -------------------------------------------
+
+    @Test
+    void changesRecordTheActingUserFromHeader() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String alexId = createUser("Alex Agent", "AGENT");
+        String samId = createUser("Sam Agent", "AGENT");
+        String incidentId = createIncident("Attributed", "HIGH", creatorId);
+
+        mockMvc.perform(patch("/api/incidents/{id}/status", incidentId)
+                        .header(ActorHeader.NAME, alexId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"IN_PROGRESS\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/incidents/{id}/assignee", incidentId)
+                        .header(ActorHeader.NAME, samId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assigneeId\": \"" + alexId + "\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/incidents/{id}/triage", incidentId)
+                        .header(ActorHeader.NAME, alexId))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$.length()").value(4))
+                .andExpect(jsonPath("$[0].type").value("AI_TRIAGED"))
+                .andExpect(jsonPath("$[0].actorId").value(alexId))
+                .andExpect(jsonPath("$[0].actorName").value("Alex Agent"))
+                .andExpect(jsonPath("$[1].type").value("ASSIGNEE_CHANGED"))
+                .andExpect(jsonPath("$[1].actorId").value(samId))
+                .andExpect(jsonPath("$[1].actorName").value("Sam Agent"))
+                .andExpect(jsonPath("$[1].toValue").value("Alex Agent"))
+                .andExpect(jsonPath("$[2].type").value("STATUS_CHANGED"))
+                .andExpect(jsonPath("$[2].actorId").value(alexId))
+                .andExpect(jsonPath("$[3].actorId").value(creatorId));
+    }
+
+    @Test
+    void changesWithoutHeaderAreRecordedWithNoActor() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String incidentId = createIncident("Anonymous change", "LOW", creatorId);
+
+        setStatus(incidentId, "RESOLVED");
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$[0].type").value("STATUS_CHANGED"))
+                .andExpect(jsonPath("$[0].actorId").value(nullValue()))
+                .andExpect(jsonPath("$[0].actorName").value(nullValue()));
+    }
+
+    @Test
+    void unknownActingUserIsRejectedAndChangesNothing() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String incidentId = createIncident("Guarded", "MEDIUM", creatorId);
+
+        mockMvc.perform(patch("/api/incidents/{id}/status", incidentId)
+                        .header(ActorHeader.NAME, UNKNOWN_ID.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"RESOLVED\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(
+                        org.hamcrest.Matchers.containsString(ActorHeader.NAME)));
+
+        mockMvc.perform(post("/api/incidents/{id}/triage", incidentId)
+                        .header(ActorHeader.NAME, UNKNOWN_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/incidents/{id}", incidentId))
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.aiSummary").value(nullValue()));
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void malformedActingUserHeaderIsRejected() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String incidentId = createIncident("Bad header", "LOW", creatorId);
+
+        mockMvc.perform(patch("/api/incidents/{id}/assignee", incidentId)
+                        .header(ActorHeader.NAME, "not-a-uuid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assigneeId\": null}"))
+                .andExpect(status().isBadRequest());
+    }
 }

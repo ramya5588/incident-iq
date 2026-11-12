@@ -52,6 +52,16 @@ public class IncidentService {
                 .orElseThrow(() -> new UserNotFoundException(userId));
     }
 
+    /** Resolves the acting user; null in means "unknown", not an error. */
+    private UserAccount findActor(UUID actorId) {
+        if (actorId == null) {
+            return null;
+        }
+
+        return userRepository.findById(actorId)
+                .orElseThrow(() -> new UnknownActorException(actorId));
+    }
+
     @Transactional
     public IncidentResponse createIncident(CreateIncidentRequest request) {
         UserAccount creator = userRepository.findById(request.createdById())
@@ -82,8 +92,9 @@ public class IncidentService {
     }
 
     @Transactional
-    public IncidentResponse triageIncident(UUID incidentId) {
+    public IncidentResponse triageIncident(UUID incidentId, UUID actorId) {
         Incident incident = findIncident(incidentId);
+        UserAccount actor = findActor(actorId);
 
         TriageResult result = triageClient.triage(
                 incident.getTitle(),
@@ -93,7 +104,7 @@ public class IncidentService {
 
         Incident savedIncident = incidentRepository.saveAndFlush(incident);
         eventRepository.save(IncidentEvent.aiTriaged(
-                savedIncident, savedIncident.getAiSummary()));
+                savedIncident, savedIncident.getAiSummary(), actor));
 
         return IncidentResponse.from(savedIncident);
     }
@@ -101,16 +112,18 @@ public class IncidentService {
     @Transactional
     public IncidentResponse updateStatus(
             UUID incidentId,
-            UpdateIncidentStatusRequest request) {
+            UpdateIncidentStatusRequest request,
+            UUID actorId) {
 
         Incident incident = findIncident(incidentId);
+        UserAccount actor = findActor(actorId);
         IncidentStatus previous = incident.getStatus();
 
         incident.updateStatus(request.status());
 
         if (previous != request.status()) {
             eventRepository.save(IncidentEvent.statusChanged(
-                    incident, previous, request.status()));
+                    incident, previous, request.status(), actor));
         }
 
         return IncidentResponse.from(
@@ -120,9 +133,11 @@ public class IncidentService {
     @Transactional
     public IncidentResponse updateAssignee(
             UUID incidentId,
-            UpdateIncidentAssigneeRequest request) {
+            UpdateIncidentAssigneeRequest request,
+            UUID actorId) {
 
         Incident incident = findIncident(incidentId);
+        UserAccount actor = findActor(actorId);
         UserAccount previous = incident.getAssignedTo();
 
         UserAccount assignee = request.assigneeId() == null
@@ -134,7 +149,7 @@ public class IncidentService {
         UUID previousId = previous == null ? null : previous.getId();
         if (!Objects.equals(previousId, request.assigneeId())) {
             eventRepository.save(IncidentEvent.assigneeChanged(
-                    incident, previous, assignee));
+                    incident, previous, assignee, actor));
         }
 
         return IncidentResponse.from(
