@@ -113,6 +113,17 @@ public class Incident {
         this.aiTriagedAt = Instant.now();
     }
 
+    public void updateStatus(IncidentStatus status) {
+        this.status = status;
+
+        if (status == IncidentStatus.RESOLVED) {
+            this.resolvedAt = Instant.now();
+        } else if (status == IncidentStatus.OPEN
+                || status == IncidentStatus.IN_PROGRESS) {
+            this.resolvedAt = null;
+        }
+    }
+
     @PreUpdate
     void beforeUpdate() {
         updatedAt = Instant.now();

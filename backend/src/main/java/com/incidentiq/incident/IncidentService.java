@@ -78,6 +78,20 @@ public class IncidentService {
         return IncidentResponse.from(savedIncident);
     }
 
+    @Transactional
+    public IncidentResponse updateStatus(
+            UUID incidentId,
+            UpdateIncidentStatusRequest request) {
+
+        Incident incident = incidentRepository.findById(incidentId)
+                .orElseThrow(() -> new IncidentNotFoundException(incidentId));
+
+        incident.updateStatus(request.status());
+
+        return IncidentResponse.from(
+                incidentRepository.saveAndFlush(incident));
+    }
+
     @Transactional(readOnly = true)
     public IncidentResponse getIncident(UUID incidentId) {
         Incident incident = incidentRepository.findById(incidentId)
