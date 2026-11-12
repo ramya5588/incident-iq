@@ -283,25 +283,20 @@ public class IncidentService {
         return IncidentResponse.from(incident);
     }
 
+    /**
+     * Lists incidents matching every filter given. {@code search} matches
+     * title, description and category (case-insensitive, as plain text) or
+     * the incident number ("42" or "INC-042").
+     */
     @Transactional(readOnly = true)
     public Page<IncidentResponse> getIncidents(
             IncidentStatus status,
             IncidentPriority priority,
+            String search,
             Pageable pageable) {
 
-        Page<Incident> incidents;
-
-        if (status != null && priority != null) {
-            incidents = incidentRepository.findAllByStatusAndPriority(
-                    status, priority, pageable);
-        } else if (status != null) {
-            incidents = incidentRepository.findAllByStatus(status, pageable);
-        } else if (priority != null) {
-            incidents = incidentRepository.findAllByPriority(priority, pageable);
-        } else {
-            incidents = incidentRepository.findAll(pageable);
-        }
-
-        return incidents.map(IncidentResponse::from);
+        return incidentRepository
+                .findAll(IncidentSpecifications.filter(status, priority, search), pageable)
+                .map(IncidentResponse::from);
     }
 }

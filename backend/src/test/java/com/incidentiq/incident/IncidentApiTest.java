@@ -269,6 +269,121 @@ class IncidentApiTest {
                 .andExpect(jsonPath("$.totalElements").value(0));
     }
 
+    // --- search ------------------------------------------------------------
+
+    private String createDetailedIncident(
+            String title, String description, String category, String priority)
+            throws Exception {
+
+        String creatorId = createUser("Reporter", "USER");
+        String id = createIncident(title, priority, creatorId);
+        editIncident(id, """
+                {"description": "%s", "category": "%s"}
+                """.formatted(description, category), null)
+                .andExpect(status().isOk());
+        return id;
+    }
+
+    private org.springframework.test.web.servlet.ResultActions search(
+            String q, String... extraParams) throws Exception {
+
+        var request = get("/api/incidents").param("q", q);
+        for (int i = 0; i < extraParams.length; i += 2) {
+            request = request.param(extraParams[i], extraParams[i + 1]);
+        }
+        return mockMvc.perform(request);
+    }
+
+    @Test
+    void searchMatchesTitleDescriptionAndCategoryIgnoringCase() throws Exception {
+        String vpn = createDetailedIncident(
+                "VPN drops every hour", "Remote staff disconnected", "Network", "HIGH");
+        String printer = createDetailedIncident(
+                "Printer jam", "Second floor printer, tray 2", "Hardware", "LOW");
+        String email = createDetailedIncident(
+                "Outlook keeps asking for password", "After the vpn change", "Email", "MEDIUM");
+
+        search("vpn")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content[*].id", containsInAnyOrder(vpn, email)));
+
+        search("  SECOND FLOOR ")
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(printer));
+
+        search("hardware")
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(printer));
+
+        search("nothing like this")
+                .andExpect(jsonPath("$.totalElements").value(0));
+
+        search("   ")
+                .andExpect(jsonPath("$.totalElements").value(3));
+    }
+
+    @Test
+    void searchFindsIncidentByNumber() throws Exception {
+        String id = createDetailedIncident("Numbered", "Plain", "Misc", "LOW");
+        long number = ((Number) JsonPath.read(
+                mockMvc.perform(get("/api/incidents/{id}", id))
+                        .andReturn().getResponse().getContentAsString(),
+                "$.incidentNumber")).longValue();
+
+        for (String q : new String[] {
+                String.valueOf(number),
+                "INC-" + String.format("%03d", number),
+                "inc" + number}) {
+            search(q)
+                    .andExpect(jsonPath("$.content[*].id", org.hamcrest.Matchers.hasItem(id)));
+        }
+
+        search("INC-999999999")
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void searchCombinesWithFiltersAndPaging() throws Exception {
+        String high = createDetailedIncident("Disk alert A", "Server disk", "Infra", "HIGH");
+        createDetailedIncident("Disk alert B", "Server disk", "Infra", "LOW");
+        String resolved = createDetailedIncident("Disk alert C", "Server disk", "Infra", "HIGH");
+        setStatus(resolved, "RESOLVED");
+
+        search("disk", "priority", "HIGH", "status", "OPEN")
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(high));
+
+        search("disk", "size", "2", "page", "1")
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.content.length()").value(1));
+    }
+
+    @Test
+    void searchTreatsWildcardsAsPlainText() throws Exception {
+        String percent = createDetailedIncident("CPU at 100% on db", "Load spike", "Infra", "HIGH");
+        String underscore = createDetailedIncident("Missing env_var", "Deploy failed", "Infra", "LOW");
+        createDetailedIncident("Plain title", "Nothing special", "Infra", "LOW");
+
+        search("%")
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(percent));
+
+        search("_")
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(underscore));
+
+        search("\\")
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void overlongSearchIsRejected() throws Exception {
+        search("x".repeat(201))
+                .andExpect(status().isBadRequest());
+    }
+
     // --- stats -------------------------------------------------------------
 
     @Test

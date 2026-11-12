@@ -128,6 +128,63 @@ a.nav-item {
   font-size: 15px;
 }
 
+.list-search {
+  flex: 1 1 280px;
+  max-width: 420px;
+}
+
+.list-search label {
+  width: 100%;
+}
+
+.search-field {
+  position: relative;
+  display: block;
+}
+
+.search-field input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 9px 36px 9px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #101828;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.search-field input:focus {
+  border-color: #6366f1;
+  outline: 3px solid rgb(99 102 241 / 20%);
+}
+
+/* Use our own clear button, not the browser's. */
+.search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-clear {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #667085;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.search-clear:hover {
+  background: #f2f4f7;
+  color: #101828;
+}
+
 .list-count {
   margin-left: auto;
   color: #64748b;

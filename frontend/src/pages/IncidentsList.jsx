@@ -4,6 +4,8 @@ import Sidebar from '../components/Sidebar'
 import { getIncidentPage } from '../services/incidentApi'
 
 const PAGE_SIZE = 10
+// Wait this long after the last keystroke before searching.
+const SEARCH_DELAY_MS = 300
 
 const STATUS_OPTIONS = [
   { value: 'OPEN', label: 'Open' },
@@ -23,11 +25,37 @@ function IncidentsList() {
   const [searchParams, setSearchParams] = useSearchParams()
   const status = searchParams.get('status') ?? ''
   const priority = searchParams.get('priority') ?? ''
+  const q = searchParams.get('q') ?? ''
   const page = Math.max(Number(searchParams.get('page') ?? 0) || 0, 0)
 
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  // What's typed in the box. It follows the URL when the URL changes from
+  // elsewhere (Clear filters, back button), and updates the URL after a pause.
+  const [searchText, setSearchText] = useState(q)
+  const [syncedQ, setSyncedQ] = useState(q)
+  if (q !== syncedQ) {
+    setSyncedQ(q)
+    setSearchText(q)
+  }
+
+  useEffect(() => {
+    if (searchText === q) return undefined
+
+    const timer = setTimeout(() => {
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current)
+        if (searchText.trim() === '') next.delete('q')
+        else next.set('q', searchText)
+        next.delete('page')
+        return next
+      })
+    }, SEARCH_DELAY_MS)
+
+    return () => clearTimeout(timer)
+  }, [searchText, q, setSearchParams])
 
   useEffect(() => {
     let cancelled = false
@@ -40,6 +68,7 @@ function IncidentsList() {
         const data = await getIncidentPage({
           status,
           priority,
+          q: q.trim(),
           page,
           size: PAGE_SIZE,
         })
@@ -57,7 +86,7 @@ function IncidentsList() {
     return () => {
       cancelled = true
     }
-  }, [status, priority, page])
+  }, [status, priority, q, page])
 
   function updateParams(changes) {
     const next = new URLSearchParams(searchParams)
@@ -76,7 +105,8 @@ function IncidentsList() {
   const incidents = result?.content ?? []
   const totalElements = result?.totalElements ?? 0
   const totalPages = result?.totalPages ?? 0
-  const hasFilters = status !== '' || priority !== ''
+  const searching = q.trim() !== ''
+  const hasFilters = status !== '' || priority !== '' || searching
   const firstShown = totalElements === 0 ? 0 : page * PAGE_SIZE + 1
   const lastShown = page * PAGE_SIZE + incidents.length
 
@@ -89,12 +119,49 @@ function IncidentsList() {
           <div>
             <p className="eyebrow">ALL INCIDENTS</p>
             <h1>Incidents</h1>
-            <p>Browse, filter and open every incident in your environment.</p>
+            <p>Search, filter and open every incident in your environment.</p>
           </div>
         </header>
 
         <section className="content-card">
           <div className="list-toolbar">
+            <form
+              className="list-search"
+              role="search"
+              onSubmit={(event) => {
+                event.preventDefault()
+                // Search right away instead of waiting for the pause.
+                updateParams({ q: searchText.trim(), page: '' })
+              }}
+            >
+              <label>
+                Search
+                <span className="search-field">
+                  <input
+                    type="search"
+                    value={searchText}
+                    onChange={(event) => setSearchText(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') setSearchText('')
+                    }}
+                    placeholder="Title, description, category or INC-042"
+                    maxLength={200}
+                    aria-label="Search incidents"
+                  />
+                  {searchText && (
+                    <button
+                      type="button"
+                      className="search-clear"
+                      aria-label="Clear search"
+                      onClick={() => setSearchText('')}
+                    >
+                      ×
+                    </button>
+                  )}
+                </span>
+              </label>
+            </form>
+
             <label>
               Status
               <select
@@ -166,9 +233,13 @@ function IncidentsList() {
 
             {!loading && !error && incidents.length === 0 && (
               <div className="table-message">
-                {hasFilters
-                  ? 'No incidents match these filters.'
-                  : 'No incidents have been created yet.'}
+                {searching
+                  ? `No incidents match “${q.trim()}”${
+                      status || priority ? ' with these filters' : ''
+                    }.`
+                  : hasFilters
+                    ? 'No incidents match these filters.'
+                    : 'No incidents have been created yet.'}
               </div>
             )}
 

@@ -49,10 +49,11 @@ export async function signOut() {
     await api.post('/auth/logout')
 }
 
-export async function getIncidentPage({ status, priority, page = 0, size = 10 } = {}) {
+export async function getIncidentPage({ status, priority, q, page = 0, size = 10 } = {}) {
     const params = { page, size }
     if (status) params.status = status
     if (priority) params.priority = priority
+    if (q) params.q = q
 
     const response = await api.get('/incidents', { params })
     return response.data

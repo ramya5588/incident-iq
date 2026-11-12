@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.incidentiq.auth.AppUserPrincipal;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 
 @RestController
 @RequestMapping("/api/incidents")
@@ -69,9 +70,11 @@ public class IncidentController {
     public Page<IncidentResponse> getIncidents(
             @RequestParam(required = false) IncidentStatus status,
             @RequestParam(required = false) IncidentPriority priority,
+            @RequestParam(name = "q", required = false)
+            @Size(max = 200, message = "Search must not exceed 200 characters") String search,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        return service.getIncidents(status, priority, pageable);
+        return service.getIncidents(status, priority, search, pageable);
     }
 
     @PatchMapping("/{incidentId}")

@@ -8,7 +8,9 @@ changed what.
 
 - **Dashboard** with live counts (open, in progress, resolved today, AI-triaged)
   and the latest incidents.
-- **Incident list** with status and priority filters and pagination.
+- **Incident list** with search (text or incident number), status and
+  priority filters, and pagination. All of it is kept in the URL, so you can
+  bookmark or share a search.
 - **Incident page:** edit title, description, priority and category; change
   status; assign an agent; run AI triage.
 - **Activity timeline** on every incident: creation, status and assignee
@@ -171,7 +173,7 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /auth/login` | anyone | Sign in with `{ email, password }` |
 | `POST /auth/logout` | signed in | Sign out |
 | `GET /auth/me` | anyone | The signed-in user, or 401 |
-| `GET /incidents` | signed in | List incidents (`status`, `priority`, `page`, `size`) |
+| `GET /incidents` | signed in | List incidents (`q`, `status`, `priority`, `page`, `size`). `q` searches title, description and category, or finds an incident number such as `42` or `INC-042` |
 | `POST /incidents` | signed in | Report an incident |
 | `GET /incidents/{id}` | signed in | Get one incident |
 | `PATCH /incidents/{id}` | agent, admin | Edit title, description, priority, category |
@@ -187,7 +189,6 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 
 ## Not built yet
 
-- Search
 - SLA and response-time tracking
 - Notifications
 - Changing your password, and changing a member's role

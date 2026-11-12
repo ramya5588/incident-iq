@@ -5,26 +5,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface IncidentRepository extends JpaRepository<Incident, UUID> {
-
-    Page<Incident> findAllByStatus(
-            IncidentStatus status,
-            Pageable pageable);
-
-    Page<Incident> findAllByPriority(
-            IncidentPriority priority,
-            Pageable pageable);
-
-    Page<Incident> findAllByStatusAndPriority(
-            IncidentStatus status,
-            IncidentPriority priority,
-            Pageable pageable);
+public interface IncidentRepository
+        extends JpaRepository<Incident, UUID>, JpaSpecificationExecutor<Incident> {
 
     long countByStatus(IncidentStatus status);
 
