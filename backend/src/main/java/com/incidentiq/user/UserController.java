@@ -3,12 +3,20 @@ package com.incidentiq.user;
 import java.net.URI;
 import java.util.List;
 
+import java.util.UUID;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.incidentiq.auth.AppUserPrincipal;
 
 import jakarta.validation.Valid;
 
@@ -36,5 +44,26 @@ public class UserController {
         URI location = URI.create("/api/users/" + response.id());
 
         return ResponseEntity.created(location).body(response);
+    }
+
+    /** Admin only (SecurityConfig). */
+    @PatchMapping("/{userId}/role")
+    public UserResponse changeRole(
+            @PathVariable UUID userId,
+            @Valid @RequestBody UpdateUserRoleRequest request,
+            @AuthenticationPrincipal AppUserPrincipal admin) {
+
+        return service.changeRole(userId, request.role(), admin.id());
+    }
+
+    /** Admin only (SecurityConfig). */
+    @PutMapping("/{userId}/password")
+    public ResponseEntity<Void> resetPassword(
+            @PathVariable UUID userId,
+            @Valid @RequestBody ResetPasswordRequest request,
+            @AuthenticationPrincipal AppUserPrincipal admin) {
+
+        service.resetPassword(userId, request.newPassword(), admin.id());
+        return ResponseEntity.noContent().build();
     }
 }

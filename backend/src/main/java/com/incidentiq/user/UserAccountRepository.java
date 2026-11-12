@@ -11,4 +11,6 @@ public interface UserAccountRepository
     Optional<UserAccount> findByEmailIgnoreCase(String email);
 
     boolean existsByEmailIgnoreCase(String email);
+
+    long countByRole(UserRole role);
 }

@@ -19,7 +19,10 @@ changed what.
   [SLA targets](#sla-targets)).
 - **Activity timeline** on every incident: creation, status and assignee
   changes, edits, triage runs and comments, each with who did it and when.
-- **Team page** with each member's role and number of active incidents.
+- **Team page** with each member's role and number of active incidents. Admins
+  can add members, change roles and reset passwords there.
+- **Account page:** change your own password. Your other signed-in devices are
+  signed out.
 - **Sign-in and roles:** session-based sign-in. Reporters, agents and admins
   each get different permissions (see [Roles](#roles)).
 - **AI triage:** suggests priority and category and writes a summary. A local
@@ -104,12 +107,17 @@ profile.
 |---|---|---|---|
 | View incidents, report new ones, comment | ✓ | ✓ | ✓ |
 | Edit details, change status, assign, run AI triage | | ✓ | ✓ |
-| Add team members | | | ✓ |
+| Add team members, change roles, reset passwords | | | ✓ |
 | Can be assigned incidents | | ✓ | ✓ |
 
 The backend enforces these rules; the frontend only hides controls a role can't
 use. The reporter, comment author and the person behind each change always come
 from the signed-in session, never from the request body.
+
+The signed-in user is re-read from the database on every request. A role
+change applies on that person's next click, without signing in again. A deleted
+account, or a session that signed in before the password was changed or reset,
+is signed out. There must always be at least one admin.
 
 ## SLA targets
 
@@ -199,6 +207,7 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /auth/login` | anyone | Sign in with `{ email, password }` |
 | `POST /auth/logout` | signed in | Sign out |
 | `GET /auth/me` | anyone | The signed-in user, or 401 |
+| `PUT /auth/password` | signed in | Change your password (`{ currentPassword, newPassword }`) |
 | `GET /incidents` | signed in | List incidents (`q`, `status`, `priority`, `overdue`, `page`, `size`). `overdue=true` keeps open or in-progress incidents past a deadline. `q` searches title, description and category, or finds an incident number such as `42` or `INC-042` |
 | `POST /incidents` | signed in | Report an incident |
 | `GET /incidents/{id}` | signed in | Get one incident |
@@ -212,10 +221,12 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `GET /incidents/workload` | signed in | Active incidents per assignee |
 | `GET /users` | signed in | List team members |
 | `POST /users` | admin | Add a team member |
+| `PATCH /users/{id}/role` | admin | Change a member's role (`{ role }`); the last admin can't be demoted |
+| `PUT /users/{id}/password` | admin | Reset a member's password (`{ newPassword }`) |
 
 ## Not built yet
 
 - Business hours and pausing SLAs (deadlines currently run around the clock)
 - Notifications
-- Changing your password, and changing a member's role
+- Editing a member's name or email, removing members, and password-reset emails
 - Frontend tests, CI and a production deployment setup

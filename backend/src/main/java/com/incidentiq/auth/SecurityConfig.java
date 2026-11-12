@@ -19,10 +19,13 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.incidentiq.user.UserAccountRepository;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -44,13 +47,19 @@ import jakarta.servlet.http.HttpServletResponse;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            UserAccountRepository userRepository) throws Exception {
+
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login", "/api/auth/me").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // Only admins manage the team.
                         .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN")
+                        // ...including changing roles and resetting passwords.
+                        .requestMatchers(HttpMethod.PATCH, "/api/users/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/users/**").hasRole("ADMIN")
                         // Working an incident (edit, status, assignee, triage)
                         // is for agents and admins. Anyone signed in can
                         // view, report and comment.
@@ -61,6 +70,9 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .csrf(csrf -> csrf.spa())
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
+                .addFilterAfter(
+                        new CurrentUserRefreshFilter(userRepository),
+                        SecurityContextHolderFilter.class)
                 .securityContext(context -> context
                         .securityContextRepository(securityContextRepository()))
                 .exceptionHandling(exceptions -> exceptions

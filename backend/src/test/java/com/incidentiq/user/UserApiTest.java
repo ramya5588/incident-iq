@@ -2,7 +2,9 @@ package com.incidentiq.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -36,10 +38,13 @@ class UserApiTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    private UserAccount admin;
+
     @BeforeEach
     void signInAsAdmin() {
-        TestAuth.signInAs(userRepository.saveAndFlush(new UserAccount(
-                "admin@incidentiq.test", "Test Admin", UserRole.ADMIN)));
+        admin = userRepository.saveAndFlush(new UserAccount(
+                "admin@incidentiq.test", "Test Admin", UserRole.ADMIN));
+        TestAuth.signInAs(admin);
     }
 
     @AfterEach
@@ -175,5 +180,105 @@ class UserApiTest {
         }
 
         assertThat(userRepository.findByEmailIgnoreCase("sneaky@incidentiq.test")).isEmpty();
+    }
+
+    // --- roles and password resets -----------------------------------------
+
+    private org.springframework.test.web.servlet.ResultActions changeRole(
+            Object userId, String role) throws Exception {
+
+        return mockMvc.perform(patch("/api/users/{id}/role", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"role\": " + (role == null ? "null" : "\"" + role + "\"") + "}"));
+    }
+
+    @Test
+    void adminCanChangeAMembersRole() throws Exception {
+        UserAccount member = userRepository.saveAndFlush(new UserAccount(
+                "member@incidentiq.test", "Member", UserRole.USER));
+
+        changeRole(member.getId(), "AGENT")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("AGENT"));
+
+        assertThat(userRepository.findById(member.getId()).orElseThrow().getRole())
+                .isEqualTo(UserRole.AGENT);
+
+        changeRole(member.getId(), null).andExpect(status().isBadRequest());
+        changeRole(member.getId(), "OWNER").andExpect(status().isBadRequest());
+        changeRole(java.util.UUID.randomUUID(), "AGENT").andExpect(status().isNotFound());
+    }
+
+    @Test
+    void theLastAdminCannotBeDemoted() throws Exception {
+        changeRole(admin.getId(), "AGENT")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(
+                        "There must always be at least one admin. Make someone else an admin first."));
+        assertThat(userRepository.findById(admin.getId()).orElseThrow().getRole())
+                .isEqualTo(UserRole.ADMIN);
+
+        // With a second admin, demoting yourself is allowed.
+        userRepository.saveAndFlush(new UserAccount(
+                "second@incidentiq.test", "Second Admin", UserRole.ADMIN));
+        changeRole(admin.getId(), "AGENT")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("AGENT"));
+    }
+
+    @Test
+    void demotionTakesEffectImmediately() throws Exception {
+        userRepository.saveAndFlush(new UserAccount(
+                "second@incidentiq.test", "Second Admin", UserRole.ADMIN));
+
+        // The signed-in principal still says ADMIN, but the database now doesn't.
+        changeRole(admin.getId(), "AGENT").andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "late@incidentiq.test", "displayName": "Too Late",
+                                 "password": "test-password"}
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void onlyAdminsCanChangeRolesOrResetPasswords() throws Exception {
+        UserAccount agent = userRepository.saveAndFlush(new UserAccount(
+                "agent@incidentiq.test", "Agent", UserRole.AGENT));
+        TestAuth.signInAs(agent);
+
+        changeRole(agent.getId(), "ADMIN").andExpect(status().isForbidden());
+        mockMvc.perform(put("/api/users/{id}/password", admin.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newPassword\": \"take-over-123\"}"))
+                .andExpect(status().isForbidden());
+
+        assertThat(userRepository.findById(agent.getId()).orElseThrow().getRole())
+                .isEqualTo(UserRole.AGENT);
+        assertThat(userRepository.findById(admin.getId()).orElseThrow().getPasswordHash())
+                .isNull();
+    }
+
+    @Test
+    void resetPasswordValidatesTheNewPassword() throws Exception {
+        UserAccount member = userRepository.saveAndFlush(new UserAccount(
+                "member@incidentiq.test", "Member", UserRole.USER));
+
+        mockMvc.perform(put("/api/users/{id}/password", member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newPassword\": \"short\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.newPassword").exists());
+
+        mockMvc.perform(put("/api/users/{id}/password", member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newPassword\": \"long-enough-1\"}"))
+                .andExpect(status().isNoContent());
+
+        assertThat(passwordEncoder.matches("long-enough-1",
+                userRepository.findById(member.getId()).orElseThrow().getPasswordHash()))
+                .isTrue();
     }
 }

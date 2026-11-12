@@ -52,10 +52,14 @@ function Sidebar() {
           {currentUser ? initials(currentUser.displayName) : '?'}
         </span>
 
-        <div className="signed-in-as">
+        <NavLink
+          to="/account"
+          className="signed-in-as"
+          title="Your account and password"
+        >
           <strong>{currentUser?.displayName}</strong>
           {currentUser && <small>{ROLE_LABELS[currentUser.role]}</small>}
-        </div>
+        </NavLink>
 
         <button
           type="button"

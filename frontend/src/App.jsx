@@ -14,6 +14,7 @@ import IncidentDetails from './pages/IncidentDetails'
 import IncidentsList from './pages/IncidentsList'
 import Team from './pages/Team'
 import SignInPage from './pages/SignInPage'
+import AccountPage from './pages/AccountPage'
 import Sidebar from './components/Sidebar'
 import CreateIncidentModal from './components/CreateIncidentModal'
 import {
@@ -277,6 +278,21 @@ function App() {
     )
   }, [])
 
+  const updateUser = useCallback((user) => {
+    setUsers((current) =>
+      current.map((existing) => (existing.id === user.id ? user : existing))
+    )
+  }, [])
+
+  // Re-read who's signed in (e.g. after an admin changes their own role).
+  const refreshCurrentUser = useCallback(async () => {
+    try {
+      setCurrentUser(await getCurrentUser())
+    } catch (requestError) {
+      console.error(requestError)
+    }
+  }, [])
+
   const currentUserValue = useMemo(
     () => ({
       users,
@@ -284,8 +300,18 @@ function App() {
       currentUser: currentUser ?? null,
       signOut: handleSignOut,
       addUser,
+      updateUser,
+      refreshCurrentUser,
     }),
-    [users, usersError, currentUser, handleSignOut, addUser]
+    [
+      users,
+      usersError,
+      currentUser,
+      handleSignOut,
+      addUser,
+      updateUser,
+      refreshCurrentUser,
+    ]
   )
 
   const openCreateIncident = useCallback(() => setShowCreateIncident(true), [])
@@ -320,6 +346,7 @@ function App() {
           <Route path="/incidents" element={<IncidentsList />} />
           <Route path="/incidents/:id" element={<IncidentDetails />} />
           <Route path="/team" element={<Team />} />
+          <Route path="/account" element={<AccountPage />} />
         </Routes>
 
         {showCreateIncident && (

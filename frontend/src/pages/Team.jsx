@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
+import { Link } from 'react-router-dom'
 import {
+  changeUserRole,
   createUser,
   describeApiError,
   getUsers,
   getWorkload,
+  resetUserPassword,
 } from '../services/incidentApi'
 import { useCurrentUser } from '../context/currentUserContext'
 import { initials } from '../utils/initials'
@@ -18,8 +21,198 @@ const ROLE_OPTIONS = [
 
 const EMPTY_MEMBER = { displayName: '', email: '', role: 'AGENT', password: '' }
 
+/**
+ * One member. Admins get a role menu (with Save/Cancel, so a stray click
+ * doesn't change anyone's access) and a password reset.
+ */
+function MemberRow({ user, activeCount, admin, isYou, onUpdated }) {
+  const [role, setRole] = useState(user.role)
+  const [savingRole, setSavingRole] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [savingPassword, setSavingPassword] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+
+  const roleChanged = role !== user.role
+
+  async function saveRole() {
+    setSavingRole(true)
+    setError('')
+    setMessage('')
+    try {
+      const updated = await changeUserRole(user.id, role)
+      onUpdated(updated)
+      const label =
+        ROLE_OPTIONS.find((option) => option.value === updated.role)?.label ??
+        updated.role
+      setMessage(`${updated.displayName} is now ${label}.`)
+    } catch (requestError) {
+      console.error(requestError)
+      setError(describeApiError(requestError, 'Unable to change the role.'))
+      setRole(user.role)
+    } finally {
+      setSavingRole(false)
+    }
+  }
+
+  async function savePassword(event) {
+    event.preventDefault()
+    setSavingPassword(true)
+    setError('')
+    setMessage('')
+    try {
+      await resetUserPassword(user.id, newPassword)
+      setResetting(false)
+      setNewPassword('')
+      setMessage(
+        `Password reset. Share it with ${user.displayName} securely. They have been signed out everywhere.`
+      )
+    } catch (requestError) {
+      console.error(requestError)
+      setError(describeApiError(requestError, 'Unable to reset the password.'))
+    } finally {
+      setSavingPassword(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="table-row team-row">
+        <span className="member">
+          <span className="avatar member-avatar">
+            {initials(user.displayName)}
+          </span>
+          <strong>
+            {user.displayName}
+            {isYou && <small className="you-tag">You</small>}
+          </strong>
+        </span>
+        <span className="member-email">{user.email}</span>
+
+        {admin ? (
+          <span className="role-edit">
+            <select
+              value={role}
+              onChange={(event) => {
+                setRole(event.target.value)
+                setMessage('')
+                setError('')
+              }}
+              disabled={savingRole}
+              aria-label={`Role for ${user.displayName}`}
+            >
+              {ROLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {roleChanged && (
+              <>
+                <button
+                  type="button"
+                  className="primary-button small-button"
+                  onClick={saveRole}
+                  disabled={savingRole}
+                >
+                  {savingRole ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button small-button"
+                  onClick={() => setRole(user.role)}
+                  disabled={savingRole}
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </span>
+        ) : (
+          <span className={`role-badge ${user.role.toLowerCase()}`}>
+            {user.role}
+          </span>
+        )}
+
+        <span className="member-workload">{activeCount}</span>
+
+        {admin && (
+          <span>
+            {isYou ? (
+              <Link className="secondary-button small-button" to="/account">
+                Change password
+              </Link>
+            ) : (
+              !resetting && (
+                <button
+                  type="button"
+                  className="secondary-button small-button"
+                  onClick={() => {
+                    setResetting(true)
+                    setMessage('')
+                    setError('')
+                  }}
+                >
+                  Reset password
+                </button>
+              )
+            )}
+          </span>
+        )}
+      </div>
+
+      {(resetting || error || message) && (
+        <div className="member-panel">
+          {resetting && (
+            <form className="reset-form" onSubmit={savePassword}>
+              <label>
+                New password for {user.displayName}
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  minLength={8}
+                  maxLength={72}
+                  placeholder="At least 8 characters"
+                  autoFocus
+                  required
+                  disabled={savingPassword}
+                />
+              </label>
+              <button
+                type="submit"
+                className="primary-button small-button"
+                disabled={savingPassword}
+              >
+                {savingPassword ? 'Saving...' : 'Set password'}
+              </button>
+              <button
+                type="button"
+                className="secondary-button small-button"
+                onClick={() => {
+                  setResetting(false)
+                  setNewPassword('')
+                }}
+                disabled={savingPassword}
+              >
+                Cancel
+              </button>
+            </form>
+          )}
+          {error && <p className="error-message">{error}</p>}
+          {message && <p className="status-message">{message}</p>}
+        </div>
+      )}
+    </>
+  )
+}
+
 function Team() {
-  const { addUser, currentUser } = useCurrentUser()
+  const { addUser, updateUser, refreshCurrentUser, currentUser } =
+    useCurrentUser()
+  const admin = isAdmin(currentUser)
   const [users, setUsers] = useState([])
   const [workload, setWorkload] = useState({})
   const [loading, setLoading] = useState(true)
@@ -54,6 +247,14 @@ function Team() {
 
     loadTeam()
   }, [])
+
+  function handleMemberUpdated(user) {
+    setUsers((current) =>
+      current.map((existing) => (existing.id === user.id ? user : existing))
+    )
+    updateUser(user)
+    if (user.id === currentUser?.id) refreshCurrentUser()
+  }
 
   function updateField(field, value) {
     setNewMember((current) => ({ ...current, [field]: value }))
@@ -219,12 +420,13 @@ function Team() {
             </div>
           </div>
 
-          <div className="incident-table">
+          <div className={`incident-table ${admin ? 'team-admin' : ''}`}>
             <div className="table-row table-header team-row">
               <span>Member</span>
               <span>Email</span>
               <span>Role</span>
               <span>Active incidents</span>
+              {admin && <span>Manage</span>}
             </div>
 
             {loading && <div className="table-message">Loading team...</div>}
@@ -236,21 +438,14 @@ function Team() {
             {!loading &&
               !error &&
               users.map((user) => (
-                <div className="table-row team-row" key={user.id}>
-                  <span className="member">
-                    <span className="avatar member-avatar">
-                      {initials(user.displayName)}
-                    </span>
-                    <strong>{user.displayName}</strong>
-                  </span>
-                  <span className="member-email">{user.email}</span>
-                  <span className={`role-badge ${user.role.toLowerCase()}`}>
-                    {user.role}
-                  </span>
-                  <span className="member-workload">
-                    {workload[user.id] ?? 0}
-                  </span>
-                </div>
+                <MemberRow
+                  key={user.id}
+                  user={user}
+                  activeCount={workload[user.id] ?? 0}
+                  admin={admin}
+                  isYou={user.id === currentUser?.id}
+                  onUpdated={handleMemberUpdated}
+                />
               ))}
           </div>
         </section>

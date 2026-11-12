@@ -49,6 +49,22 @@ export async function signOut() {
     await api.post('/auth/logout')
 }
 
+/** Change your own password. Other sessions of your account are signed out. */
+export async function changeOwnPassword(currentPassword, newPassword) {
+    await api.put('/auth/password', { currentPassword, newPassword })
+}
+
+/** Admin only. */
+export async function changeUserRole(userId, role) {
+    const response = await api.patch(`/users/${userId}/role`, { role })
+    return response.data
+}
+
+/** Admin only. The member's existing sessions are signed out. */
+export async function resetUserPassword(userId, newPassword) {
+    await api.put(`/users/${userId}/password`, { newPassword })
+}
+
 export async function getIncidentPage({
     status,
     priority,
