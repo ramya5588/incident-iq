@@ -11,6 +11,7 @@ import com.incidentiq.ai.IncidentTriageClient;
 import com.incidentiq.ai.TriageResult;
 import com.incidentiq.user.UserAccount;
 import com.incidentiq.user.UserAccountRepository;
+import com.incidentiq.user.UserRole;
 
 import jakarta.persistence.EntityManager;
 
@@ -193,6 +194,10 @@ public class IncidentService {
         UserAccount assignee = request.assigneeId() == null
                 ? null
                 : findUser(request.assigneeId());
+
+        if (assignee != null && assignee.getRole() == UserRole.USER) {
+            throw new InvalidAssigneeException(assignee.getDisplayName());
+        }
 
         incident.assignTo(assignee);
 

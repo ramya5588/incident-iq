@@ -743,4 +743,78 @@ class IncidentApiTest {
         editIncident(UNKNOWN_ID.toString(), "{\"title\": \"Nope\"}", null)
                 .andExpect(status().isNotFound());
     }
+
+    // --- roles -------------------------------------------------------------
+
+    @Test
+    void regularUsersCanReportViewAndCommentButNotWorkIncidents() throws Exception {
+        String reporterId = createUser("Riley Reporter", "USER");
+        String agentId = createUser("Alex Agent", "AGENT");
+        String incidentId = createIncident("Laptop won't boot", "MEDIUM", reporterId);
+        actAs(reporterId);
+
+        mockMvc.perform(get("/api/incidents/{id}", incidentId))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"body\": \"Still broken\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(patch("/api/incidents/{id}/status", incidentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"RESOLVED\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("You don't have permission to do that."));
+        mockMvc.perform(patch("/api/incidents/{id}/assignee", incidentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assigneeId\": \"" + agentId + "\"}"))
+                .andExpect(status().isForbidden());
+        editIncident(incidentId, "{\"priority\": \"CRITICAL\"}", null)
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/incidents/{id}/triage", incidentId))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/incidents/{id}", incidentId))
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.priority").value("MEDIUM"))
+                .andExpect(jsonPath("$.assignedToId").value(nullValue()))
+                .andExpect(jsonPath("$.aiSummary").value(nullValue()));
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].type").value("COMMENT"));
+    }
+
+    @Test
+    void agentsCanWorkIncidents() throws Exception {
+        String reporterId = createUser("Riley Reporter", "USER");
+        String agentId = createUser("Alex Agent", "AGENT");
+        String incidentId = createIncident("Agent work", "LOW", reporterId);
+        actAs(agentId);
+
+        setStatus(incidentId, "IN_PROGRESS");
+        setAssignee(incidentId, agentId);
+        editIncident(incidentId, "{\"priority\": \"HIGH\"}", null)
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/incidents/{id}/triage", incidentId))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void onlyAgentsAndAdminsCanBeAssigned() throws Exception {
+        String reporterId = createUser("Riley Reporter", "USER");
+        String incidentId = createIncident("Who takes it?", "LOW", reporterId);
+
+        mockMvc.perform(patch("/api/incidents/{id}/assignee", incidentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assigneeId\": \"" + reporterId + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(
+                        "Riley Reporter can't be assigned incidents: only agents and admins can."));
+
+        setAssignee(incidentId, adminId);
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].toValue").value("Test Admin"));
+    }
 }

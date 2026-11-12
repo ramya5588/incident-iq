@@ -4,7 +4,10 @@ import java.io.IOException;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -17,6 +20,7 @@ import org.springframework.security.web.authentication.logout.HttpStatusReturnin
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -45,6 +49,15 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login", "/api/auth/me").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        // Only admins manage the team.
+                        .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN")
+                        // Working an incident (edit, status, assignee, triage)
+                        // is for agents and admins. Anyone signed in can
+                        // view, report and comment.
+                        .requestMatchers(HttpMethod.PATCH, "/api/incidents/**")
+                                .hasAnyRole("AGENT", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/incidents/*/triage")
+                                .hasAnyRole("AGENT", "ADMIN")
                         .anyRequest().authenticated())
                 .csrf(csrf -> csrf.spa())
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
@@ -52,7 +65,8 @@ public class SecurityConfig {
                         .securityContextRepository(securityContextRepository()))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(
-                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                        .accessDeniedHandler(SecurityConfig::writeForbidden))
                 .logout(logout -> logout
                         .logoutUrl("/api/auth/logout")
                         .logoutSuccessHandler(
@@ -61,6 +75,26 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable());
 
         return http.build();
+    }
+
+    /**
+     * 403 with a JSON message the frontend can show. A missing or stale CSRF
+     * token also lands here, so say which problem it is.
+     */
+    private static void writeForbidden(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            AccessDeniedException exception) throws IOException {
+
+        String message = exception instanceof CsrfException
+                ? "Your session token is missing or expired. Reload the page and try again."
+                : "You don't have permission to do that.";
+
+        response.setStatus(HttpStatus.FORBIDDEN.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write("{\"status\":403,\"error\":\"Forbidden\",\"message\":\""
+                + message.replace("\"", "\\\"") + "\"}");
     }
 
     @Bean

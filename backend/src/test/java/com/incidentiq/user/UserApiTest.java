@@ -154,4 +154,26 @@ class UserApiTest {
         assertThat(hash).isNotEqualTo("correct-horse");
         assertThat(passwordEncoder.matches("correct-horse", hash)).isTrue();
     }
+
+    @Test
+    void onlyAdminsCanAddTeamMembersButEveryoneCanListThem() throws Exception {
+        for (UserRole role : new UserRole[] {UserRole.AGENT, UserRole.USER}) {
+            TestAuth.signInAs(userRepository.saveAndFlush(new UserAccount(
+                    role.name().toLowerCase() + "@incidentiq.test", "Not Admin", role)));
+
+            mockMvc.perform(post("/api/users")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"email": "sneaky@incidentiq.test", "displayName": "Sneaky",
+                                     "role": "ADMIN", "password": "test-password"}
+                                    """))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.message").value("You don't have permission to do that."));
+
+            mockMvc.perform(get("/api/users"))
+                    .andExpect(status().isOk());
+        }
+
+        assertThat(userRepository.findByEmailIgnoreCase("sneaky@incidentiq.test")).isEmpty();
+    }
 }

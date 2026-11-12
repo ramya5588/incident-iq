@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
+    describeApiError,
     getIncidentById,
     triageIncident,
     updateIncidentAssignee,
@@ -9,13 +10,12 @@ import {
 import IncidentTimeline from '../components/IncidentTimeline'
 import IncidentEditForm from '../components/IncidentEditForm'
 import { useCurrentUser } from '../context/currentUserContext'
+import { STATUS_LABELS, canBeAssigned, canWorkIncidents } from '../utils/roles'
 
-const STATUS_OPTIONS = [
-    { value: 'OPEN', label: 'Open' },
-    { value: 'IN_PROGRESS', label: 'In progress' },
-    { value: 'RESOLVED', label: 'Resolved' },
-    { value: 'CLOSED', label: 'Closed' },
-]
+const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([value, label]) => ({
+    value,
+    label,
+}))
 
 function IncidentDetails() {
     const { id } = useParams()
@@ -29,7 +29,9 @@ function IncidentDetails() {
     const [updatingStatus, setUpdatingStatus] = useState(false)
     const [statusError, setStatusError] = useState('')
     const [statusMessage, setStatusMessage] = useState('')
-    const { users, usersError } = useCurrentUser()
+    const { users, usersError, currentUser } = useCurrentUser()
+    // Reporters (USER role) can view and comment; the rest is for agents/admins.
+    const canWork = canWorkIncidents(currentUser)
     const [selectedAssignee, setSelectedAssignee] = useState('')
     const [updatingAssignee, setUpdatingAssignee] = useState(false)
     const [assigneeError, setAssigneeError] = useState('')
@@ -66,7 +68,9 @@ function IncidentDetails() {
             refreshTimeline()
         } catch (requestError) {
             console.error(requestError)
-            setTriageError('Unable to run AI triage. Please try again.')
+            setTriageError(
+                describeApiError(requestError, 'Unable to run AI triage. Please try again.')
+            )
         } finally {
             setTriaging(false)
         }
@@ -86,7 +90,9 @@ function IncidentDetails() {
             refreshTimeline()
         } catch (requestError) {
             console.error(requestError)
-            setStatusError('Unable to update the status. Please try again.')
+            setStatusError(
+                describeApiError(requestError, 'Unable to update the status. Please try again.')
+            )
         } finally {
             setUpdatingStatus(false)
         }
@@ -113,7 +119,9 @@ function IncidentDetails() {
             refreshTimeline()
         } catch (requestError) {
             console.error(requestError)
-            setAssigneeError('Unable to update the assignee. Please try again.')
+            setAssigneeError(
+                describeApiError(requestError, 'Unable to update the assignee. Please try again.')
+            )
         } finally {
             setUpdatingAssignee(false)
         }
@@ -136,6 +144,12 @@ function IncidentDetails() {
         return <main className="details-page">Incident not found.</main>
     }
 
+    // Agents and admins, plus whoever is assigned now (so the menu still
+    // shows them if their role has changed since).
+    const assignableUsers = users.filter(
+        (user) => canBeAssigned(user) || user.id === incident.assignedToId
+    )
+
     return (
         <main className="details-page">
             <Link to="/">← Back to dashboard</Link>
@@ -157,16 +171,18 @@ function IncidentDetails() {
                 <>
                     <div className="details-title-row">
                         <h1>{incident.title}</h1>
-                        <button
-                            type="button"
-                            className="secondary-button"
-                            onClick={() => {
-                                setEditing(true)
-                                setEditMessage('')
-                            }}
-                        >
-                            Edit details
-                        </button>
+                        {canWork && (
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={() => {
+                                    setEditing(true)
+                                    setEditMessage('')
+                                }}
+                            >
+                                Edit details
+                            </button>
+                        )}
                     </div>
 
                     <p>
@@ -189,35 +205,42 @@ function IncidentDetails() {
                     </>
                 )}
 
-                <form className="status-form" onSubmit={handleStatusUpdate}>
-                    <label htmlFor="incident-status">
-                        <strong>Status:</strong>
-                    </label>
-                    <select
-                        id="incident-status"
-                        value={selectedStatus}
-                        onChange={(event) => {
-                            setSelectedStatus(event.target.value)
-                            setStatusMessage('')
-                        }}
-                        disabled={updatingStatus}
-                    >
-                        {STATUS_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                                {option.label}
-                            </option>
-                        ))}
-                    </select>
-                    <button
-                        className="secondary-button"
-                        type="submit"
-                        disabled={
-                            updatingStatus || selectedStatus === incident.status
-                        }
-                    >
-                        {updatingStatus ? 'Updating...' : 'Update status'}
-                    </button>
-                </form>
+                {canWork ? (
+                    <form className="status-form" onSubmit={handleStatusUpdate}>
+                        <label htmlFor="incident-status">
+                            <strong>Status:</strong>
+                        </label>
+                        <select
+                            id="incident-status"
+                            value={selectedStatus}
+                            onChange={(event) => {
+                                setSelectedStatus(event.target.value)
+                                setStatusMessage('')
+                            }}
+                            disabled={updatingStatus}
+                        >
+                            {STATUS_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            className="secondary-button"
+                            type="submit"
+                            disabled={
+                                updatingStatus || selectedStatus === incident.status
+                            }
+                        >
+                            {updatingStatus ? 'Updating...' : 'Update status'}
+                        </button>
+                    </form>
+                ) : (
+                    <p>
+                        <strong>Status:</strong>{' '}
+                        {STATUS_LABELS[incident.status] ?? incident.status}
+                    </p>
+                )}
 
                 {statusMessage && (
                     <p className="status-message">{statusMessage}</p>
@@ -226,45 +249,52 @@ function IncidentDetails() {
                     <p className="error-message">{statusError}</p>
                 )}
 
-                <form className="status-form" onSubmit={handleAssigneeUpdate}>
-                    <label htmlFor="incident-assignee">
-                        <strong>Assigned to:</strong>
-                    </label>
-                    <select
-                        id="incident-assignee"
-                        value={selectedAssignee}
-                        onChange={(event) => {
-                            setSelectedAssignee(event.target.value)
-                            setAssigneeMessage('')
-                        }}
-                        disabled={updatingAssignee || usersError !== ''}
-                    >
-                        <option value="">Unassigned</option>
-                        {users.map((user) => (
-                            <option key={user.id} value={user.id}>
-                                {user.displayName}
-                                {user.role !== 'USER'
-                                    ? ` (${user.role.toLowerCase()})`
-                                    : ''}
-                            </option>
-                        ))}
-                    </select>
-                    <button
-                        className="secondary-button"
-                        type="submit"
-                        disabled={
-                            updatingAssignee ||
-                            selectedAssignee === (incident.assignedToId ?? '')
-                        }
-                    >
-                        {updatingAssignee ? 'Saving...' : 'Update assignee'}
-                    </button>
-                </form>
+                {canWork ? (
+                    <form className="status-form" onSubmit={handleAssigneeUpdate}>
+                        <label htmlFor="incident-assignee">
+                            <strong>Assigned to:</strong>
+                        </label>
+                        <select
+                            id="incident-assignee"
+                            value={selectedAssignee}
+                            onChange={(event) => {
+                                setSelectedAssignee(event.target.value)
+                                setAssigneeMessage('')
+                            }}
+                            disabled={updatingAssignee || usersError !== ''}
+                        >
+                            <option value="">Unassigned</option>
+                            {assignableUsers.map((user) => (
+                                <option key={user.id} value={user.id}>
+                                    {user.displayName}
+                                    {user.role !== 'USER'
+                                        ? ` (${user.role.toLowerCase()})`
+                                        : ''}
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            className="secondary-button"
+                            type="submit"
+                            disabled={
+                                updatingAssignee ||
+                                selectedAssignee === (incident.assignedToId ?? '')
+                            }
+                        >
+                            {updatingAssignee ? 'Saving...' : 'Update assignee'}
+                        </button>
+                    </form>
+                ) : (
+                    <p>
+                        <strong>Assigned to:</strong>{' '}
+                        {incident.assignedToName ?? 'Unassigned'}
+                    </p>
+                )}
 
                 {assigneeMessage && (
                     <p className="status-message">{assigneeMessage}</p>
                 )}
-                {(assigneeError || usersError) && (
+                {(assigneeError || (canWork && usersError)) && (
                     <p className="error-message">{assigneeError || usersError}</p>
                 )}
 
@@ -288,14 +318,16 @@ function IncidentDetails() {
                     </>
                 )}
             </section>
-            <button
-                className="primary-button"
-                type="button"
-                onClick={handleTriage}
-                disabled={triaging}
-            >
-                {triaging ? 'Running AI triage...' : 'Run AI triage'}
-            </button>
+            {canWork && (
+                <button
+                    className="primary-button"
+                    type="button"
+                    onClick={handleTriage}
+                    disabled={triaging}
+                >
+                    {triaging ? 'Running AI triage...' : 'Run AI triage'}
+                </button>
+            )}
 
             {triageError && (
                 <p className="error-message">{triageError}</p>

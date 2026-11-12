@@ -8,6 +8,7 @@ import {
 } from '../services/incidentApi'
 import { useCurrentUser } from '../context/currentUserContext'
 import { initials } from '../utils/initials'
+import { isAdmin } from '../utils/roles'
 
 const ROLE_OPTIONS = [
   { value: 'USER', label: 'User' },
@@ -18,7 +19,7 @@ const ROLE_OPTIONS = [
 const EMPTY_MEMBER = { displayName: '', email: '', role: 'AGENT', password: '' }
 
 function Team() {
-  const { addUser } = useCurrentUser()
+  const { addUser, currentUser } = useCurrentUser()
   const [users, setUsers] = useState([])
   const [workload, setWorkload] = useState({})
   const [loading, setLoading] = useState(true)
@@ -97,7 +98,7 @@ function Team() {
             <p>Everyone who can report and work on incidents.</p>
           </div>
 
-          {!showAddForm && (
+          {isAdmin(currentUser) && !showAddForm && (
             <button
               className="primary-button"
               onClick={() => {
@@ -112,7 +113,7 @@ function Team() {
 
         {formMessage && <p className="status-message">{formMessage}</p>}
 
-        {showAddForm && (
+        {isAdmin(currentUser) && showAddForm && (
           <section className="content-card add-member-card">
             <div className="section-heading">
               <div>
