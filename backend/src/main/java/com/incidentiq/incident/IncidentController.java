@@ -72,9 +72,10 @@ public class IncidentController {
             @RequestParam(required = false) IncidentPriority priority,
             @RequestParam(name = "q", required = false)
             @Size(max = 200, message = "Search must not exceed 200 characters") String search,
+            @RequestParam(defaultValue = "false") boolean overdue,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        return service.getIncidents(status, priority, search, pageable);
+        return service.getIncidents(status, priority, search, overdue, pageable);
     }
 
     @PatchMapping("/{incidentId}")

@@ -9,6 +9,8 @@ import java.time.Instant;
  * @param resolvedInWindow incidents whose resolvedAt is at or after
  *        {@code resolvedSince} (includes ones closed after resolving)
  * @param aiTriagedPercentage share of all incidents with AI triage, 0–100, rounded
+ * @param slaBreached open or in-progress incidents past a response or
+ *        resolution deadline
  */
 public record IncidentStatsResponse(
         long total,
@@ -19,5 +21,6 @@ public record IncidentStatsResponse(
         Instant resolvedSince,
         long resolvedInWindow,
         long aiTriaged,
-        int aiTriagedPercentage) {
+        int aiTriagedPercentage,
+        long slaBreached) {
 }

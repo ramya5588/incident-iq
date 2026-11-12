@@ -80,6 +80,18 @@ public class Incident {
     @Column(name = "resolved_at")
     private Instant resolvedAt;
 
+    /** SLA: someone should pick it up (assign / leave Open) by this time. */
+    @Column(name = "respond_by", nullable = false)
+    private Instant respondBy;
+
+    /** SLA: it should be resolved by this time. */
+    @Column(name = "resolve_by", nullable = false)
+    private Instant resolveBy;
+
+    /** When it was first assigned or moved out of Open; never cleared. */
+    @Column(name = "first_responded_at")
+    private Instant firstRespondedAt;
+
     protected Incident() {
         // Required by JPA
     }
@@ -98,19 +110,37 @@ public class Incident {
         this.createdBy = createdBy;
     }
 
-    @PrePersist
-    void beforeInsert() {
-        Instant now = Instant.now();
-        createdAt = now;
-        updatedAt = now;
+    /**
+     * Sets the reported time and the SLA deadlines. Call once, before the
+     * incident is first saved.
+     */
+    public void startSla(Instant reportedAt, SlaProperties.Target target) {
+        this.createdAt = reportedAt;
+        this.updatedAt = reportedAt;
+        applyTarget(target);
     }
 
-    public void applyAiTriage(TriageResult result) {
+    private void applyTarget(SlaProperties.Target target) {
+        this.respondBy = createdAt.plus(target.respond());
+        this.resolveBy = createdAt.plus(target.resolve());
+    }
+
+    @PrePersist
+    void beforeInsert() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = createdAt;
+        }
+    }
+
+    public void applyAiTriage(TriageResult result, Instant now) {
         this.aiSummary = result.summary();
         this.aiSuggestedCategory = result.category();
         this.aiSuggestedPriority = result.suggestedPriority();
         this.aiReasoning = result.reasoning();
-        this.aiTriagedAt = Instant.now();
+        this.aiTriagedAt = now;
     }
 
     public void rename(String title) {
@@ -121,8 +151,10 @@ public class Incident {
         this.description = description;
     }
 
-    public void changePriority(IncidentPriority priority) {
+    /** Deadlines are recalculated from when the incident was reported. */
+    public void changePriority(IncidentPriority priority, SlaProperties.Target target) {
         this.priority = priority;
+        applyTarget(target);
     }
 
     /** {@code null} clears the category. */
@@ -130,18 +162,31 @@ public class Incident {
         this.category = category;
     }
 
-    public void assignTo(UserAccount assignee) {
+    public void assignTo(UserAccount assignee, Instant now) {
         this.assignedTo = assignee;
+        if (assignee != null) {
+            markResponded(now);
+        }
     }
 
-    public void updateStatus(IncidentStatus status) {
+    public void updateStatus(IncidentStatus status, Instant now) {
         this.status = status;
 
+        if (status != IncidentStatus.OPEN) {
+            markResponded(now);
+        }
+
         if (status == IncidentStatus.RESOLVED) {
-            this.resolvedAt = Instant.now();
+            this.resolvedAt = now;
         } else if (status == IncidentStatus.OPEN
                 || status == IncidentStatus.IN_PROGRESS) {
             this.resolvedAt = null;
+        }
+    }
+
+    private void markResponded(Instant now) {
+        if (firstRespondedAt == null) {
+            firstRespondedAt = now;
         }
     }
 
@@ -212,6 +257,18 @@ public class Incident {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public Instant getRespondBy() {
+        return respondBy;
+    }
+
+    public Instant getResolveBy() {
+        return resolveBy;
+    }
+
+    public Instant getFirstRespondedAt() {
+        return firstRespondedAt;
     }
 
     public Instant getResolvedAt() {

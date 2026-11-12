@@ -1,5 +1,6 @@
 package com.incidentiq.incident;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -60,6 +61,21 @@ final class IncidentSpecifications {
 
             return cb.and(predicates.toArray(Predicate[]::new));
         };
+    }
+
+    /**
+     * Open or in-progress incidents past a deadline: not picked up by
+     * respond_by, or not resolved by resolve_by. Matches the BREACHED state
+     * in {@link IncidentSla} for incidents that are still active.
+     */
+    static Specification<Incident> overdue(Instant now) {
+        return (root, query, cb) -> cb.and(
+                root.get("status").in(IncidentStatus.OPEN, IncidentStatus.IN_PROGRESS),
+                cb.or(
+                        cb.and(
+                                cb.isNull(root.get("firstRespondedAt")),
+                                cb.lessThanOrEqualTo(root.<Instant>get("respondBy"), now)),
+                        cb.lessThanOrEqualTo(root.<Instant>get("resolveBy"), now)));
     }
 
     /** Treat %, _ and the escape character itself as plain text. */

@@ -103,6 +103,17 @@ function Dashboard() {
             <small>Since midnight, your time</small>
           </article>
 
+          <Link
+            className={`stat-card stat-link ${
+              stats?.slaBreached > 0 ? 'danger-card' : ''
+            }`}
+            to="/incidents?overdue=true"
+          >
+            <span>SLA breached</span>
+            <strong>{statValue(stats?.slaBreached)}</strong>
+            <small>Open and past a deadline</small>
+          </Link>
+
           <article className="stat-card accent-card">
             <span>AI triaged</span>
             <strong>{statValue(stats?.aiTriagedPercentage, '%')}</strong>

@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import { getIncidentPage } from '../services/incidentApi'
+import SlaBadge from '../components/SlaBadge'
+import { useNow } from '../hooks/useNow'
+import { currentClock } from '../utils/sla'
 
 const PAGE_SIZE = 10
 // Wait this long after the last keystroke before searching.
@@ -21,11 +24,30 @@ const PRIORITY_OPTIONS = [
   { value: 'CRITICAL', label: 'Critical' },
 ]
 
+/** Respond deadline until picked up, then the resolve deadline. */
+function SlaCell({ incident, now }) {
+  const current = currentClock(incident)
+  if (!current) return <span>—</span>
+
+  return (
+    <span>
+      <SlaBadge
+        clock={current.clock}
+        startedAt={incident.createdAt}
+        now={now}
+        kind={current.kind}
+      />
+    </span>
+  )
+}
+
 function IncidentsList() {
   const [searchParams, setSearchParams] = useSearchParams()
   const status = searchParams.get('status') ?? ''
   const priority = searchParams.get('priority') ?? ''
   const q = searchParams.get('q') ?? ''
+  const overdue = searchParams.get('overdue') === 'true'
+  const now = useNow()
   const page = Math.max(Number(searchParams.get('page') ?? 0) || 0, 0)
 
   const [result, setResult] = useState(null)
@@ -69,6 +91,7 @@ function IncidentsList() {
           status,
           priority,
           q: q.trim(),
+          overdue,
           page,
           size: PAGE_SIZE,
         })
@@ -86,7 +109,7 @@ function IncidentsList() {
     return () => {
       cancelled = true
     }
-  }, [status, priority, q, page])
+  }, [status, priority, q, overdue, page])
 
   function updateParams(changes) {
     const next = new URLSearchParams(searchParams)
@@ -106,7 +129,7 @@ function IncidentsList() {
   const totalElements = result?.totalElements ?? 0
   const totalPages = result?.totalPages ?? 0
   const searching = q.trim() !== ''
-  const hasFilters = status !== '' || priority !== '' || searching
+  const hasFilters = status !== '' || priority !== '' || searching || overdue
   const firstShown = totalElements === 0 ? 0 : page * PAGE_SIZE + 1
   const lastShown = page * PAGE_SIZE + incidents.length
 
@@ -196,6 +219,20 @@ function IncidentsList() {
               </select>
             </label>
 
+            <label className="checkbox-filter">
+              <input
+                type="checkbox"
+                checked={overdue}
+                onChange={(event) =>
+                  updateParams({
+                    overdue: event.target.checked ? 'true' : '',
+                    page: '',
+                  })
+                }
+              />
+              Overdue only
+            </label>
+
             {hasFilters && (
               <button
                 type="button"
@@ -220,6 +257,7 @@ function IncidentsList() {
               <span>Priority</span>
               <span>Status</span>
               <span>Assignee</span>
+              <span>SLA</span>
               <span>Created</span>
             </div>
 
@@ -237,9 +275,11 @@ function IncidentsList() {
                   ? `No incidents match “${q.trim()}”${
                       status || priority ? ' with these filters' : ''
                     }.`
-                  : hasFilters
-                    ? 'No incidents match these filters.'
-                    : 'No incidents have been created yet.'}
+                  : overdue && !status && !priority
+                    ? 'Nothing is overdue. Nice work.'
+                    : hasFilters
+                      ? 'No incidents match these filters.'
+                      : 'No incidents have been created yet.'}
               </div>
             )}
 
@@ -278,6 +318,8 @@ function IncidentsList() {
                   >
                     {incident.assignedToName ?? 'Unassigned'}
                   </span>
+
+                  <SlaCell incident={incident} now={now} />
 
                   <span className="created-at">
                     {incident.createdAt

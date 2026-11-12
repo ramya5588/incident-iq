@@ -11,11 +11,34 @@ import IncidentTimeline from '../components/IncidentTimeline'
 import IncidentEditForm from '../components/IncidentEditForm'
 import { useCurrentUser } from '../context/currentUserContext'
 import { STATUS_LABELS, canBeAssigned, canWorkIncidents } from '../utils/roles'
+import SlaBadge from '../components/SlaBadge'
+import { useNow } from '../hooks/useNow'
+import { formatDeadline } from '../utils/sla'
 
 const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([value, label]) => ({
     value,
     label,
 }))
+
+function SlaRow({ label, hint, clock, startedAt, now }) {
+    return (
+        <div className="sla-row">
+            <dt>
+                {label}
+                <small>{hint}</small>
+            </dt>
+            <dd>
+                <span className="sla-due">{formatDeadline(clock.dueAt)}</span>
+                <SlaBadge clock={clock} startedAt={startedAt} now={now} />
+                {clock.completedAt && (
+                    <small className="sla-done">
+                        Done {formatDeadline(clock.completedAt)}
+                    </small>
+                )}
+            </dd>
+        </div>
+    )
+}
 
 function IncidentDetails() {
     const { id } = useParams()
@@ -30,6 +53,7 @@ function IncidentDetails() {
     const [statusError, setStatusError] = useState('')
     const [statusMessage, setStatusMessage] = useState('')
     const { users, usersError, currentUser } = useCurrentUser()
+    const now = useNow()
     // Reporters (USER role) can view and comment; the rest is for agents/admins.
     const canWork = canWorkIncidents(currentUser)
     const [selectedAssignee, setSelectedAssignee] = useState('')
@@ -318,6 +342,29 @@ function IncidentDetails() {
                     </>
                 )}
             </section>
+
+            {incident.sla && (
+                <section className="sla-section">
+                    <h2>SLA</h2>
+                    <dl className="sla-grid">
+                        <SlaRow
+                            label="Respond by"
+                            hint="First assigned or moved out of Open"
+                            clock={incident.sla.response}
+                            startedAt={incident.createdAt}
+                            now={now}
+                        />
+                        <SlaRow
+                            label="Resolve by"
+                            hint="Status set to Resolved"
+                            clock={incident.sla.resolution}
+                            startedAt={incident.createdAt}
+                            now={now}
+                        />
+                    </dl>
+                </section>
+            )}
+
             {canWork && (
                 <button
                     className="primary-button"

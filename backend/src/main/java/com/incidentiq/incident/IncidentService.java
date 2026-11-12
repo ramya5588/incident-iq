@@ -1,8 +1,10 @@
 package com.incidentiq.incident;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -28,19 +30,34 @@ public class IncidentService {
     private final EntityManager entityManager;
     private final IncidentTriageClient triageClient;
     private final IncidentEventRepository eventRepository;
+    private final SlaProperties slaProperties;
+    private final Clock clock;
 
     public IncidentService(
             IncidentRepository incidentRepository,
             UserAccountRepository userRepository,
             EntityManager entityManager,
             IncidentTriageClient triageClient,
-            IncidentEventRepository eventRepository) {
+            IncidentEventRepository eventRepository,
+            SlaProperties slaProperties,
+            Clock clock) {
 
         this.incidentRepository = incidentRepository;
         this.userRepository = userRepository;
         this.entityManager = entityManager;
         this.triageClient = triageClient;
         this.eventRepository = eventRepository;
+        this.slaProperties = slaProperties;
+        this.clock = clock;
+    }
+
+    /** Current time at the database's precision (microseconds). */
+    private Instant now() {
+        return clock.instant().truncatedTo(ChronoUnit.MICROS);
+    }
+
+    private IncidentResponse toResponse(Incident incident) {
+        return IncidentResponse.from(incident, IncidentSla.of(incident, now()));
     }
 
     private Incident findIncident(UUID incidentId) {
@@ -80,13 +97,14 @@ public class IncidentService {
                 priority,
                 category,
                 creator);
+        incident.startSla(now(), slaProperties.targetFor(priority));
 
         Incident savedIncident = incidentRepository.saveAndFlush(incident);
         eventRepository.save(IncidentEvent.created(savedIncident, creator));
 
         entityManager.refresh(savedIncident);
 
-        return IncidentResponse.from(savedIncident);
+        return toResponse(savedIncident);
     }
 
     @Transactional
@@ -98,13 +116,13 @@ public class IncidentService {
                 incident.getTitle(),
                 incident.getDescription());
 
-        incident.applyAiTriage(result);
+        incident.applyAiTriage(result, now());
 
         Incident savedIncident = incidentRepository.saveAndFlush(incident);
         eventRepository.save(IncidentEvent.aiTriaged(
                 savedIncident, savedIncident.getAiSummary(), actor));
 
-        return IncidentResponse.from(savedIncident);
+        return toResponse(savedIncident);
     }
 
     @Transactional
@@ -117,15 +135,13 @@ public class IncidentService {
         UserAccount actor = findActor(actorId);
         IncidentStatus previous = incident.getStatus();
 
-        incident.updateStatus(request.status());
-
         if (previous != request.status()) {
+            incident.updateStatus(request.status(), now());
             eventRepository.save(IncidentEvent.statusChanged(
                     incident, previous, request.status(), actor));
         }
 
-        return IncidentResponse.from(
-                incidentRepository.saveAndFlush(incident));
+        return toResponse(incidentRepository.saveAndFlush(incident));
     }
 
     /**
@@ -161,7 +177,8 @@ public class IncidentService {
                     incident, IncidentEventType.PRIORITY_CHANGED,
                     incident.getPriority().name(), request.priority().name(),
                     actor));
-            incident.changePriority(request.priority());
+            incident.changePriority(
+                    request.priority(), slaProperties.targetFor(request.priority()));
         }
 
         if (request.category() != null) {
@@ -177,8 +194,7 @@ public class IncidentService {
             }
         }
 
-        return IncidentResponse.from(
-                incidentRepository.saveAndFlush(incident));
+        return toResponse(incidentRepository.saveAndFlush(incident));
     }
 
     @Transactional
@@ -199,7 +215,7 @@ public class IncidentService {
             throw new InvalidAssigneeException(assignee.getDisplayName());
         }
 
-        incident.assignTo(assignee);
+        incident.assignTo(assignee, now());
 
         UUID previousId = previous == null ? null : previous.getId();
         if (!Objects.equals(previousId, request.assigneeId())) {
@@ -207,8 +223,7 @@ public class IncidentService {
                     incident, previous, assignee, actor));
         }
 
-        return IncidentResponse.from(
-                incidentRepository.saveAndFlush(incident));
+        return toResponse(incidentRepository.saveAndFlush(incident));
     }
 
     @Transactional(readOnly = true)
@@ -255,7 +270,8 @@ public class IncidentService {
     public IncidentStatsResponse getStats(Instant resolvedSince) {
         Instant since = resolvedSince != null
                 ? resolvedSince
-                : LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
+                : LocalDate.now(clock.withZone(ZoneOffset.UTC))
+                        .atStartOfDay(ZoneOffset.UTC).toInstant();
 
         long total = incidentRepository.count();
         long aiTriaged = incidentRepository.countByAiTriagedAtIsNotNull();
@@ -272,7 +288,8 @@ public class IncidentService {
                 since,
                 incidentRepository.countByResolvedAtGreaterThanEqual(since),
                 aiTriaged,
-                aiTriagedPercentage);
+                aiTriagedPercentage,
+                incidentRepository.count(IncidentSpecifications.overdue(now())));
     }
 
     @Transactional(readOnly = true)
@@ -280,23 +297,28 @@ public class IncidentService {
         Incident incident = incidentRepository.findById(incidentId)
                 .orElseThrow(() -> new IncidentNotFoundException(incidentId));
 
-        return IncidentResponse.from(incident);
+        return toResponse(incident);
     }
 
     /**
      * Lists incidents matching every filter given. {@code search} matches
      * title, description and category (case-insensitive, as plain text) or
-     * the incident number ("42" or "INC-042").
+     * the incident number ("42" or "INC-042"). {@code overdue} keeps only
+     * open or in-progress incidents past a response or resolution deadline.
      */
     @Transactional(readOnly = true)
     public Page<IncidentResponse> getIncidents(
             IncidentStatus status,
             IncidentPriority priority,
             String search,
+            boolean overdue,
             Pageable pageable) {
 
-        return incidentRepository
-                .findAll(IncidentSpecifications.filter(status, priority, search), pageable)
-                .map(IncidentResponse::from);
+        var filter = IncidentSpecifications.filter(status, priority, search);
+        if (overdue) {
+            filter = filter.and(IncidentSpecifications.overdue(now()));
+        }
+
+        return incidentRepository.findAll(filter, pageable).map(this::toResponse);
     }
 }

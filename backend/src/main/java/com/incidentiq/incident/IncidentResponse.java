@@ -21,9 +21,10 @@ public record IncidentResponse(
         Instant aiTriagedAt,
         Instant createdAt,
         Instant updatedAt,
-        Instant resolvedAt) {
+        Instant resolvedAt,
+        IncidentSla sla) {
 
-    public static IncidentResponse from(Incident incident) {
+    public static IncidentResponse from(Incident incident, IncidentSla sla) {
         return new IncidentResponse(
                 incident.getId(),
                 incident.getIncidentNumber(),
@@ -46,6 +47,7 @@ public record IncidentResponse(
                 incident.getAiTriagedAt(),
                 incident.getCreatedAt(),
                 incident.getUpdatedAt(),
-                incident.getResolvedAt());
+                incident.getResolvedAt(),
+                sla);
     }
 }

@@ -6,13 +6,17 @@ changed what.
 
 ## Features
 
-- **Dashboard** with live counts (open, in progress, resolved today, AI-triaged)
-  and the latest incidents.
+- **Dashboard** with live counts (open, in progress, resolved today, SLA
+  breached, AI-triaged) and the latest incidents.
 - **Incident list** with search (text or incident number), status and
   priority filters, and pagination. All of it is kept in the URL, so you can
   bookmark or share a search.
 - **Incident page:** edit title, description, priority and category; change
   status; assign an agent; run AI triage.
+- **SLA tracking:** each incident gets a respond-by and a resolve-by deadline
+  from its priority. Each one shows as on track, at risk, breached or met on
+  the list and the incident page, and there's an "Overdue only" filter (see
+  [SLA targets](#sla-targets)).
 - **Activity timeline** on every incident: creation, status and assignee
   changes, edits, triage runs and comments, each with who did it and when.
 - **Team page** with each member's role and number of active incidents.
@@ -107,6 +111,28 @@ The backend enforces these rules; the frontend only hides controls a role can't
 use. The reporter, comment author and the person behind each change always come
 from the signed-in session, never from the request body.
 
+## SLA targets
+
+| Priority | Respond within | Resolve within |
+|---|---|---|
+| Critical | 15 minutes | 4 hours |
+| High | 1 hour | 8 hours |
+| Medium | 4 hours | 24 hours |
+| Low | 8 hours | 3 days |
+
+- **Respond** means someone first assigns the incident or moves it out of Open.
+  **Resolve** means its status is set to Resolved; closing it without
+  resolving also counts.
+- Deadlines are measured from when the incident was reported and run around
+  the clock. Changing the priority recalculates both deadlines.
+- **At risk** means a quarter or less of the time is left. **Breached** means
+  the deadline passed before it was done.
+- Change the targets with the `incidentiq.sla.targets.<PRIORITY>.respond` and
+  `.resolve` settings in
+  [`application.properties`](backend/src/main/resources/application.properties).
+  New targets apply to new incidents and to priority changes; deadlines that
+  already exist stay as they are.
+
 ## Configuration
 
 The backend reads these environment variables:
@@ -173,7 +199,7 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /auth/login` | anyone | Sign in with `{ email, password }` |
 | `POST /auth/logout` | signed in | Sign out |
 | `GET /auth/me` | anyone | The signed-in user, or 401 |
-| `GET /incidents` | signed in | List incidents (`q`, `status`, `priority`, `page`, `size`). `q` searches title, description and category, or finds an incident number such as `42` or `INC-042` |
+| `GET /incidents` | signed in | List incidents (`q`, `status`, `priority`, `overdue`, `page`, `size`). `overdue=true` keeps open or in-progress incidents past a deadline. `q` searches title, description and category, or finds an incident number such as `42` or `INC-042` |
 | `POST /incidents` | signed in | Report an incident |
 | `GET /incidents/{id}` | signed in | Get one incident |
 | `PATCH /incidents/{id}` | agent, admin | Edit title, description, priority, category |
@@ -182,14 +208,14 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /incidents/{id}/triage` | agent, admin | Run AI triage |
 | `GET /incidents/{id}/events` | signed in | Activity timeline, newest first |
 | `POST /incidents/{id}/comments` | signed in | Add a comment |
-| `GET /incidents/stats` | signed in | Dashboard counts (`resolvedSince` optional) |
+| `GET /incidents/stats` | signed in | Dashboard counts, including `slaBreached` (`resolvedSince` optional) |
 | `GET /incidents/workload` | signed in | Active incidents per assignee |
 | `GET /users` | signed in | List team members |
 | `POST /users` | admin | Add a team member |
 
 ## Not built yet
 
-- SLA and response-time tracking
+- Business hours and pausing SLAs (deadlines currently run around the clock)
 - Notifications
 - Changing your password, and changing a member's role
 - Frontend tests, CI and a production deployment setup
