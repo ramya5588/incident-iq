@@ -19,6 +19,10 @@ function statusLabel(value) {
   return STATUS_LABELS[value] ?? value
 }
 
+function titleCase(value) {
+  return value ? value.charAt(0) + value.slice(1).toLowerCase() : value
+}
+
 function formatTime(value) {
   return new Date(value).toLocaleString(undefined, {
     dateStyle: 'medium',
@@ -51,6 +55,20 @@ function describeEvent(event) {
       return by
         ? `${by}unassigned ${event.fromValue ?? 'the previous assignee'}`
         : `Unassigned from ${event.fromValue ?? 'previous assignee'}`
+    case 'TITLE_CHANGED':
+      return `${by ? `${by}renamed` : 'Renamed'} from “${event.fromValue}” to “${event.toValue}”`
+    case 'DESCRIPTION_EDITED':
+      return by ? `${by}edited the description` : 'Description edited'
+    case 'PRIORITY_CHANGED':
+      return `${by ? `${by}changed priority` : 'Priority changed'} from ${titleCase(event.fromValue)} to ${titleCase(event.toValue)}`
+    case 'CATEGORY_CHANGED':
+      if (!event.toValue) {
+        return `${by ? `${by}cleared the category` : 'Category cleared'} (was ${event.fromValue})`
+      }
+      if (!event.fromValue) {
+        return `${by ? `${by}set the category` : 'Category set'} to ${event.toValue}`
+      }
+      return `${by ? `${by}changed category` : 'Category changed'} from ${event.fromValue} to ${event.toValue}`
     case 'AI_TRIAGED':
       return by ? `${by}ran AI triage` : 'AI triage ran'
     case 'COMMENT':

@@ -108,6 +108,23 @@ public class IncidentEvent {
                 incident, IncidentEventType.AI_TRIAGED, null, null, summary, actor);
     }
 
+    /** Title, priority or category edit: stores old and new values. */
+    public static IncidentEvent fieldChanged(
+            Incident incident, IncidentEventType type,
+            String from, String to, UserAccount actor) {
+
+        return new IncidentEvent(incident, type, from, to, null, actor);
+    }
+
+    /** Descriptions are too long to snapshot, so only the fact is kept. */
+    public static IncidentEvent descriptionEdited(
+            Incident incident, UserAccount actor) {
+
+        return new IncidentEvent(
+                incident, IncidentEventType.DESCRIPTION_EDITED,
+                null, null, null, actor);
+    }
+
     public static IncidentEvent comment(
             Incident incident, UserAccount author, String body) {
 

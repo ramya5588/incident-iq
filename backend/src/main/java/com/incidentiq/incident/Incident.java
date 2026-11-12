@@ -113,6 +113,23 @@ public class Incident {
         this.aiTriagedAt = Instant.now();
     }
 
+    public void rename(String title) {
+        this.title = title;
+    }
+
+    public void describe(String description) {
+        this.description = description;
+    }
+
+    public void changePriority(IncidentPriority priority) {
+        this.priority = priority;
+    }
+
+    /** {@code null} clears the category. */
+    public void changeCategory(String category) {
+        this.category = category;
+    }
+
     public void assignTo(UserAccount assignee) {
         this.assignedTo = assignee;
     }

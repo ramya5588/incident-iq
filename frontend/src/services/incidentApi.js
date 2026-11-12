@@ -51,6 +51,12 @@ export async function createIncident(incident) {
     return response.data
 }
 
+/** Partial edit: pass only the fields to change ('' category clears it). */
+export async function updateIncident(id, changes) {
+    const response = await api.patch(`/incidents/${id}`, changes)
+    return response.data
+}
+
 export async function triageIncident(id) {
     const response = await api.post(`/incidents/${id}/triage`)
     return response.data

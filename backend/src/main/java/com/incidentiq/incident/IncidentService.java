@@ -130,6 +130,59 @@ public class IncidentService {
                 incidentRepository.saveAndFlush(incident));
     }
 
+    /**
+     * Applies a partial edit and records one timeline entry per field that
+     * actually changed. Unchanged or omitted fields are left alone.
+     */
+    @Transactional
+    public IncidentResponse updateIncident(
+            UUID incidentId,
+            UpdateIncidentRequest request,
+            UUID actorId) {
+
+        Incident incident = findIncident(incidentId);
+        UserAccount actor = findActor(actorId);
+
+        if (request.title() != null
+                && !request.title().equals(incident.getTitle())) {
+            eventRepository.save(IncidentEvent.fieldChanged(
+                    incident, IncidentEventType.TITLE_CHANGED,
+                    incident.getTitle(), request.title(), actor));
+            incident.rename(request.title());
+        }
+
+        if (request.description() != null
+                && !request.description().equals(incident.getDescription())) {
+            eventRepository.save(IncidentEvent.descriptionEdited(incident, actor));
+            incident.describe(request.description());
+        }
+
+        if (request.priority() != null
+                && request.priority() != incident.getPriority()) {
+            eventRepository.save(IncidentEvent.fieldChanged(
+                    incident, IncidentEventType.PRIORITY_CHANGED,
+                    incident.getPriority().name(), request.priority().name(),
+                    actor));
+            incident.changePriority(request.priority());
+        }
+
+        if (request.category() != null) {
+            String category = request.category().isEmpty()
+                    ? null
+                    : request.category();
+
+            if (!Objects.equals(category, incident.getCategory())) {
+                eventRepository.save(IncidentEvent.fieldChanged(
+                        incident, IncidentEventType.CATEGORY_CHANGED,
+                        incident.getCategory(), category, actor));
+                incident.changeCategory(category);
+            }
+        }
+
+        return IncidentResponse.from(
+                incidentRepository.saveAndFlush(incident));
+    }
+
     @Transactional
     public IncidentResponse updateAssignee(
             UUID incidentId,

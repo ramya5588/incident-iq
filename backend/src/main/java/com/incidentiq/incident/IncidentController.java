@@ -71,6 +71,15 @@ public class IncidentController {
         return service.getIncidents(status, priority, pageable);
     }
 
+    @PatchMapping("/{incidentId}")
+    public IncidentResponse updateIncident(
+            @PathVariable UUID incidentId,
+            @Valid @RequestBody UpdateIncidentRequest request,
+            @RequestHeader(name = ActorHeader.NAME, required = false) UUID actorId) {
+
+        return service.updateIncident(incidentId, request, actorId);
+    }
+
     @PostMapping("/{incidentId}/triage")
     public IncidentResponse triageIncident(
             @PathVariable UUID incidentId,

@@ -7,6 +7,7 @@ import {
     updateIncidentStatus,
 } from '../services/incidentApi'
 import IncidentTimeline from '../components/IncidentTimeline'
+import IncidentEditForm from '../components/IncidentEditForm'
 import { useCurrentUser } from '../context/currentUserContext'
 
 const STATUS_OPTIONS = [
@@ -33,6 +34,8 @@ function IncidentDetails() {
     const [updatingAssignee, setUpdatingAssignee] = useState(false)
     const [assigneeError, setAssigneeError] = useState('')
     const [assigneeMessage, setAssigneeMessage] = useState('')
+    const [editing, setEditing] = useState(false)
+    const [editMessage, setEditMessage] = useState('')
     const [timelineKey, setTimelineKey] = useState(0)
     const refreshTimeline = () => setTimelineKey((key) => key + 1)
 
@@ -138,15 +141,53 @@ function IncidentDetails() {
             <Link to="/">← Back to dashboard</Link>
 
             <p className="eyebrow">INCIDENT DETAILS</p>
-            <h1>{incident.title}</h1>
 
-            <p>
-                INC-{String(incident.incidentNumber).padStart(3, '0')}
-            </p>
+            {editing ? (
+                <IncidentEditForm
+                    incident={incident}
+                    onCancel={() => setEditing(false)}
+                    onSaved={(updatedIncident) => {
+                        setIncident(updatedIncident)
+                        setEditing(false)
+                        setEditMessage('Details saved.')
+                        refreshTimeline()
+                    }}
+                />
+            ) : (
+                <>
+                    <div className="details-title-row">
+                        <h1>{incident.title}</h1>
+                        <button
+                            type="button"
+                            className="secondary-button"
+                            onClick={() => {
+                                setEditing(true)
+                                setEditMessage('')
+                            }}
+                        >
+                            Edit details
+                        </button>
+                    </div>
+
+                    <p>
+                        INC-{String(incident.incidentNumber).padStart(3, '0')}
+                    </p>
+
+                    {editMessage && (
+                        <p className="status-message">{editMessage}</p>
+                    )}
+                </>
+            )}
 
             <section>
-                <h2>Description</h2>
-                <p>{incident.description}</p>
+                {!editing && (
+                    <>
+                        <h2>Description</h2>
+                        <p className="details-description">
+                            {incident.description}
+                        </p>
+                    </>
+                )}
 
                 <form className="status-form" onSubmit={handleStatusUpdate}>
                     <label htmlFor="incident-status">
@@ -234,13 +275,18 @@ function IncidentDetails() {
                     </p>
                 )}
 
-                <p>
-                    <strong>Priority:</strong> {incident.priority}
-                </p>
+                {!editing && (
+                    <>
+                        <p>
+                            <strong>Priority:</strong> {incident.priority}
+                        </p>
 
-                <p>
-                    <strong>Category:</strong> {incident.category}
-                </p>
+                        <p>
+                            <strong>Category:</strong>{' '}
+                            {incident.category ?? 'None'}
+                        </p>
+                    </>
+                )}
             </section>
             <button
                 className="primary-button"

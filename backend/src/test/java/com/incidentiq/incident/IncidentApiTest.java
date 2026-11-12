@@ -580,6 +580,126 @@ class IncidentApiTest {
                 .andExpect(jsonPath("$.length()").value(1));
     }
 
+    // --- editing details ---------------------------------------------------
+
+    private org.springframework.test.web.servlet.ResultActions editIncident(
+            String incidentId, String json, String actorId) throws Exception {
+
+        var request = patch("/api/incidents/{id}", incidentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json);
+        if (actorId != null) {
+            request = request.header(ActorHeader.NAME, actorId);
+        }
+        return mockMvc.perform(request);
+    }
+
+    @Test
+    void editingUpdatesFieldsAndRecordsOneEventPerChange() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String alexId = createUser("Alex Agent", "AGENT");
+        String incidentId = createIncident("Login slow", "LOW", creatorId);
+
+        editIncident(incidentId, """
+                {
+                  "title": "  Login very slow  ",
+                  "description": "Takes 30s for everyone",
+                  "priority": "CRITICAL",
+                  "category": "Performance"
+                }
+                """, alexId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Login very slow"))
+                .andExpect(jsonPath("$.description").value("Takes 30s for everyone"))
+                .andExpect(jsonPath("$.priority").value("CRITICAL"))
+                .andExpect(jsonPath("$.category").value("Performance"));
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$.length()").value(5))
+                .andExpect(jsonPath("$[0].type").value("CATEGORY_CHANGED"))
+                .andExpect(jsonPath("$[0].fromValue").value("Testing"))
+                .andExpect(jsonPath("$[0].toValue").value("Performance"))
+                .andExpect(jsonPath("$[1].type").value("PRIORITY_CHANGED"))
+                .andExpect(jsonPath("$[1].fromValue").value("LOW"))
+                .andExpect(jsonPath("$[1].toValue").value("CRITICAL"))
+                .andExpect(jsonPath("$[2].type").value("DESCRIPTION_EDITED"))
+                .andExpect(jsonPath("$[2].fromValue").value(nullValue()))
+                .andExpect(jsonPath("$[3].type").value("TITLE_CHANGED"))
+                .andExpect(jsonPath("$[3].fromValue").value("Login slow"))
+                .andExpect(jsonPath("$[3].toValue").value("Login very slow"))
+                .andExpect(jsonPath("$[3].actorName").value("Alex Agent"))
+                .andExpect(jsonPath("$[4].type").value("CREATED"));
+    }
+
+    @Test
+    void partialEditLeavesOtherFieldsAndSkipsUnchanged() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String incidentId = createIncident("Printer jam", "MEDIUM", creatorId);
+
+        editIncident(incidentId, """
+                {"title": "Printer jam", "priority": "HIGH"}
+                """, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Printer jam"))
+                .andExpect(jsonPath("$.description").value("Test description"))
+                .andExpect(jsonPath("$.priority").value("HIGH"))
+                .andExpect(jsonPath("$.category").value("Testing"));
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].type").value("PRIORITY_CHANGED"));
+
+        editIncident(incidentId, "{}", null).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void blankCategoryClearsIt() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String incidentId = createIncident("Uncategorised", "LOW", creatorId);
+
+        editIncident(incidentId, "{\"category\": \"   \"}", null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.category").value(nullValue()));
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$[0].type").value("CATEGORY_CHANGED"))
+                .andExpect(jsonPath("$[0].fromValue").value("Testing"))
+                .andExpect(jsonPath("$[0].toValue").value(nullValue()));
+    }
+
+    @Test
+    void invalidEditIsRejectedAndChangesNothing() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String incidentId = createIncident("Keep me", "LOW", creatorId);
+
+        editIncident(incidentId, """
+                {"title": "   ", "description": "", "priority": "HIGH"}
+                """, null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.title").value("Title must not be blank"))
+                .andExpect(jsonPath("$.details.description").exists());
+
+        editIncident(incidentId,
+                "{\"title\": \"" + "x".repeat(201) + "\"}", null)
+                .andExpect(status().isBadRequest());
+
+        editIncident(incidentId, "{\"priority\": \"URGENT\"}", null)
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/incidents/{id}", incidentId))
+                .andExpect(jsonPath("$.title").value("Keep me"))
+                .andExpect(jsonPath("$.priority").value("LOW"));
+    }
+
+    @Test
+    void editingUnknownIncidentReturns404() throws Exception {
+        editIncident(UNKNOWN_ID.toString(), "{\"title\": \"Nope\"}", null)
+                .andExpect(status().isNotFound());
+    }
+
     @Test
     void malformedActingUserHeaderIsRejected() throws Exception {
         String creatorId = createUser("Creator", "USER");
