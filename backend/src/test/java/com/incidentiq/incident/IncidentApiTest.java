@@ -12,25 +12,33 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.incidentiq.TestAuth;
 import com.incidentiq.TestcontainersConfiguration;
+import com.incidentiq.user.UserAccount;
+import com.incidentiq.user.UserAccountRepository;
+import com.incidentiq.user.UserRole;
 import com.jayway.jsonpath.JsonPath;
 
 /**
  * End-to-end API tests against a throwaway PostgreSQL container.
- * Each test runs in a transaction that is rolled back afterwards.
+ * Each test runs in a transaction that is rolled back afterwards, signed in
+ * as a fresh admin unless it switches user with {@link #actAs}.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, TestAuth.Csrf.class})
 @Transactional
 class IncidentApiTest {
 
@@ -40,7 +48,32 @@ class IncidentApiTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private UserAccountRepository userRepository;
+
+    private String adminId;
+
+    @BeforeEach
+    void signInAsAdmin() {
+        UserAccount admin = userRepository.saveAndFlush(new UserAccount(
+                "admin." + UUID.randomUUID() + "@incidentiq.test",
+                "Test Admin",
+                UserRole.ADMIN));
+        adminId = admin.getId().toString();
+        TestAuth.signInAs(admin);
+    }
+
+    @AfterEach
+    void signOut() {
+        TestAuth.signOut();
+    }
+
     // --- helpers -----------------------------------------------------------
+
+    /** Makes later requests in this test run as the given user. */
+    private void actAs(String userId) {
+        TestAuth.signInAs(userRepository.findById(UUID.fromString(userId)).orElseThrow());
+    }
 
     private String createUser(String name, String role) throws Exception {
         String email = name.toLowerCase().replace(' ', '.')
@@ -49,7 +82,8 @@ class IncidentApiTest {
         String body = mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "%s", "displayName": "%s", "role": "%s"}
+                                {"email": "%s", "displayName": "%s", "role": "%s",
+                                 "password": "test-password"}
                                 """.formatted(email, name, role)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -57,8 +91,12 @@ class IncidentApiTest {
         return JsonPath.read(body, "$.id");
     }
 
+    /** Creates an incident reported by {@code creatorId}, then switches back. */
     private String createIncident(String title, String priority, String creatorId)
             throws Exception {
+
+        Authentication previous = TestAuth.current();
+        actAs(creatorId);
 
         String body = mockMvc.perform(post("/api/incidents")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -67,12 +105,13 @@ class IncidentApiTest {
                                   "title": "%s",
                                   "description": "Test description",
                                   "priority": "%s",
-                                  "category": "Testing",
-                                  "createdById": "%s"
+                                  "category": "Testing"
                                 }
-                                """.formatted(title, priority, creatorId)))
+                                """.formatted(title, priority)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
+
+        TestAuth.signIn(previous);
 
         return JsonPath.read(body, "$.id");
     }
@@ -391,11 +430,12 @@ class IncidentApiTest {
         String agentId = createUser("Alex Agent", "AGENT");
         String incidentId = createIncident("Needs notes", "MEDIUM", creatorId);
 
+        actAs(agentId);
         mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"authorId": "%s", "body": "  Rolled back deploy 4.2  "}
-                                """.formatted(agentId)))
+                                {"body": "  Rolled back deploy 4.2  "}
+                                """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.type").value("COMMENT"))
                 .andExpect(jsonPath("$.message").value("Rolled back deploy 4.2"))
@@ -415,24 +455,18 @@ class IncidentApiTest {
 
         mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"authorId\": \"" + creatorId + "\", \"body\": \"   \"}"))
+                        .content("{\"body\": \"   \"}"))
                 .andExpect(status().isBadRequest());
 
         mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"body\": \"No author\"}"))
+                        .content("{}"))
                 .andExpect(status().isBadRequest());
 
         mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"authorId\": \"" + creatorId + "\", \"body\": \""
-                                + "x".repeat(2001) + "\"}"))
+                        .content("{\"body\": \"" + "x".repeat(2001) + "\"}"))
                 .andExpect(status().isBadRequest());
-
-        mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"authorId\": \"" + UNKNOWN_ID + "\", \"body\": \"Hi\"}"))
-                .andExpect(status().isNotFound());
 
         mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
                 .andExpect(jsonPath("$.length()").value(1));
@@ -440,14 +474,12 @@ class IncidentApiTest {
 
     @Test
     void eventsAndCommentsOnUnknownIncidentReturn404() throws Exception {
-        String creatorId = createUser("Creator", "USER");
-
         mockMvc.perform(get("/api/incidents/{id}/events", UNKNOWN_ID))
                 .andExpect(status().isNotFound());
 
         mockMvc.perform(post("/api/incidents/{id}/comments", UNKNOWN_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"authorId\": \"" + creatorId + "\", \"body\": \"Hi\"}"))
+                        .content("{\"body\": \"Hi\"}"))
                 .andExpect(status().isNotFound());
     }
 
@@ -503,29 +535,23 @@ class IncidentApiTest {
                 .andExpect(jsonPath("$.content.length()").value(1));
     }
 
-    // --- acting user (X-User-Id) -------------------------------------------
+    // --- acting user (from the session) -----------------------------------
 
     @Test
-    void changesRecordTheActingUserFromHeader() throws Exception {
+    void changesAreAttributedToTheSignedInUser() throws Exception {
         String creatorId = createUser("Creator", "USER");
         String alexId = createUser("Alex Agent", "AGENT");
         String samId = createUser("Sam Agent", "AGENT");
         String incidentId = createIncident("Attributed", "HIGH", creatorId);
 
-        mockMvc.perform(patch("/api/incidents/{id}/status", incidentId)
-                        .header(ActorHeader.NAME, alexId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"IN_PROGRESS\"}"))
-                .andExpect(status().isOk());
+        actAs(alexId);
+        setStatus(incidentId, "IN_PROGRESS");
 
-        mockMvc.perform(patch("/api/incidents/{id}/assignee", incidentId)
-                        .header(ActorHeader.NAME, samId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"assigneeId\": \"" + alexId + "\"}"))
-                .andExpect(status().isOk());
+        actAs(samId);
+        setAssignee(incidentId, alexId);
 
-        mockMvc.perform(post("/api/incidents/{id}/triage", incidentId)
-                        .header(ActorHeader.NAME, alexId))
+        actAs(alexId);
+        mockMvc.perform(post("/api/incidents/{id}/triage", incidentId))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
@@ -543,41 +569,59 @@ class IncidentApiTest {
     }
 
     @Test
-    void changesWithoutHeaderAreRecordedWithNoActor() throws Exception {
-        String creatorId = createUser("Creator", "USER");
-        String incidentId = createIncident("Anonymous change", "LOW", creatorId);
+    void clientCannotChooseReporterAuthorOrActor() throws Exception {
+        String alexId = createUser("Alex Agent", "AGENT");
+        String samId = createUser("Sam Agent", "AGENT");
+        actAs(alexId);
 
-        setStatus(incidentId, "RESOLVED");
+        // Old-style fields and the old header are ignored: Alex is the actor.
+        String body = mockMvc.perform(post("/api/incidents")
+                        .header("X-User-Id", samId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title": "Spoof", "description": "Who?",
+                                 "category": "Testing", "createdById": "%s"}
+                                """.formatted(samId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.createdById").value(alexId))
+                .andReturn().getResponse().getContentAsString();
+        String incidentId = JsonPath.read(body, "$.id");
+
+        mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"authorId\": \"" + samId + "\", \"body\": \"Hi\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.actorId").value(alexId));
+
+        mockMvc.perform(patch("/api/incidents/{id}/status", incidentId)
+                        .header("X-User-Id", samId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"RESOLVED\"}"))
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
                 .andExpect(jsonPath("$[0].type").value("STATUS_CHANGED"))
-                .andExpect(jsonPath("$[0].actorId").value(nullValue()))
-                .andExpect(jsonPath("$[0].actorName").value(nullValue()));
+                .andExpect(jsonPath("$[0].actorId").value(alexId));
     }
 
     @Test
-    void unknownActingUserIsRejectedAndChangesNothing() throws Exception {
+    void signedOutRequestsAreRejected() throws Exception {
         String creatorId = createUser("Creator", "USER");
-        String incidentId = createIncident("Guarded", "MEDIUM", creatorId);
+        String incidentId = createIncident("Private", "LOW", creatorId);
+        TestAuth.signOut();
 
+        mockMvc.perform(get("/api/incidents"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(patch("/api/incidents/{id}/status", incidentId)
-                        .header(ActorHeader.NAME, UNKNOWN_ID.toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\": \"RESOLVED\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value(
-                        org.hamcrest.Matchers.containsString(ActorHeader.NAME)));
+                .andExpect(status().isUnauthorized());
 
-        mockMvc.perform(post("/api/incidents/{id}/triage", incidentId)
-                        .header(ActorHeader.NAME, UNKNOWN_ID.toString()))
-                .andExpect(status().isBadRequest());
-
+        actAs(adminId);
         mockMvc.perform(get("/api/incidents/{id}", incidentId))
-                .andExpect(jsonPath("$.status").value("OPEN"))
-                .andExpect(jsonPath("$.aiSummary").value(nullValue()));
-
-        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
-                .andExpect(jsonPath("$.length()").value(1));
+                .andExpect(jsonPath("$.status").value("OPEN"));
     }
 
     // --- editing details ---------------------------------------------------
@@ -589,7 +633,7 @@ class IncidentApiTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json);
         if (actorId != null) {
-            request = request.header(ActorHeader.NAME, actorId);
+            actAs(actorId);
         }
         return mockMvc.perform(request);
     }
@@ -698,17 +742,5 @@ class IncidentApiTest {
     void editingUnknownIncidentReturns404() throws Exception {
         editIncident(UNKNOWN_ID.toString(), "{\"title\": \"Nope\"}", null)
                 .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void malformedActingUserHeaderIsRejected() throws Exception {
-        String creatorId = createUser("Creator", "USER");
-        String incidentId = createIncident("Bad header", "LOW", creatorId);
-
-        mockMvc.perform(patch("/api/incidents/{id}/assignee", incidentId)
-                        .header(ActorHeader.NAME, "not-a-uuid")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"assigneeId\": null}"))
-                .andExpect(status().isBadRequest());
     }
 }

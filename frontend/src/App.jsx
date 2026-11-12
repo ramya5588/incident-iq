@@ -2,16 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   getIncidentPage,
   getIncidentStats,
+  getCurrentUser,
   getUsers,
-  setActingUserId,
+  onUnauthorized,
+  signOut as signOutRequest,
 } from './services/incidentApi'
-import { CURRENT_USER_STORAGE_KEY, DEFAULT_USER_ID } from './config'
 import { CurrentUserContext } from './context/currentUserContext'
 import './App.css'
 import { Link, Routes, Route, useNavigate } from 'react-router-dom'
 import IncidentDetails from './pages/IncidentDetails'
 import IncidentsList from './pages/IncidentsList'
 import Team from './pages/Team'
+import SignInPage from './pages/SignInPage'
 import Sidebar from './components/Sidebar'
 import CreateIncidentModal from './components/CreateIncidentModal'
 import {
@@ -183,55 +185,78 @@ function Dashboard() {
   )
 }
 
-function readStoredUserId() {
-  try {
-    return window.localStorage.getItem(CURRENT_USER_STORAGE_KEY) ?? ''
-  } catch {
-    return ''
-  }
-}
-
 function App() {
   const navigate = useNavigate()
   const [showCreateIncident, setShowCreateIncident] = useState(false)
 
+  // undefined = still checking the session, null = signed out.
+  const [currentUser, setCurrentUser] = useState(undefined)
   const [users, setUsers] = useState([])
   const [usersError, setUsersError] = useState('')
-  const [selectedUserId, setSelectedUserId] = useState(readStoredUserId)
+
+  const handleSignedOut = useCallback(() => {
+    setCurrentUser(null)
+    setUsers([])
+    setUsersError('')
+    setShowCreateIncident(false)
+  }, [])
 
   useEffect(() => {
-    async function loadUsers() {
+    let cancelled = false
+
+    async function checkSession() {
       try {
-        setUsers(await getUsers())
+        const user = await getCurrentUser()
+        if (!cancelled) setCurrentUser(user)
       } catch (requestError) {
         console.error(requestError)
-        setUsersError('Unable to load users.')
+        if (!cancelled) setCurrentUser(null)
+      }
+    }
+
+    checkSession()
+    // Any later 401 (expired session, signed out elsewhere) shows sign-in.
+    onUnauthorized(handleSignedOut)
+
+    return () => {
+      cancelled = true
+      onUnauthorized(null)
+    }
+  }, [handleSignedOut])
+
+  const signedInId = currentUser?.id
+  useEffect(() => {
+    if (!signedInId) return undefined
+    let cancelled = false
+
+    async function loadUsers() {
+      try {
+        const data = await getUsers()
+        if (!cancelled) {
+          setUsers(data)
+          setUsersError('')
+        }
+      } catch (requestError) {
+        console.error(requestError)
+        if (!cancelled) setUsersError('Unable to load users.')
       }
     }
 
     loadUsers()
-  }, [])
-
-  // Fall back to the default admin (or anyone) if the stored user is gone.
-  const currentUser =
-    users.find((user) => user.id === selectedUserId) ??
-    users.find((user) => user.id === DEFAULT_USER_ID) ??
-    users[0] ??
-    null
-
-  const currentUserId = currentUser?.id ?? null
-  useEffect(() => {
-    setActingUserId(currentUserId)
-  }, [currentUserId])
-
-  const setCurrentUserId = useCallback((userId) => {
-    setSelectedUserId(userId)
-    try {
-      window.localStorage.setItem(CURRENT_USER_STORAGE_KEY, userId)
-    } catch {
-      // Storage unavailable (private mode etc.): keep it for this tab only.
+    return () => {
+      cancelled = true
     }
-  }, [])
+  }, [signedInId])
+
+  const handleSignOut = useCallback(async () => {
+    try {
+      await signOutRequest()
+    } catch (requestError) {
+      // Still drop local state; the session may already be gone.
+      console.error(requestError)
+    }
+    handleSignedOut()
+  }, [handleSignedOut])
 
   const addUser = useCallback((user) => {
     setUsers((current) =>
@@ -242,8 +267,14 @@ function App() {
   }, [])
 
   const currentUserValue = useMemo(
-    () => ({ users, usersError, currentUser, setCurrentUserId, addUser }),
-    [users, usersError, currentUser, setCurrentUserId, addUser]
+    () => ({
+      users,
+      usersError,
+      currentUser: currentUser ?? null,
+      signOut: handleSignOut,
+      addUser,
+    }),
+    [users, usersError, currentUser, handleSignOut, addUser]
   )
 
   const openCreateIncident = useCallback(() => setShowCreateIncident(true), [])
@@ -260,6 +291,14 @@ function App() {
   function handleCreated(incident) {
     setShowCreateIncident(false)
     navigate(`/incidents/${incident.id}`)
+  }
+
+  if (currentUser === undefined) {
+    return <div className="auth-loading">Loading IncidentIQ…</div>
+  }
+
+  if (currentUser === null) {
+    return <SignInPage onSignedIn={setCurrentUser} />
   }
 
   return (

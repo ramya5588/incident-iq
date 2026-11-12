@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Locale;
 
 import org.springframework.data.domain.Sort;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,9 +12,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserAccountService {
 
     private final UserAccountRepository repository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserAccountService(UserAccountRepository repository) {
+    public UserAccountService(
+            UserAccountRepository repository,
+            PasswordEncoder passwordEncoder) {
+
         this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional(readOnly = true)
@@ -42,6 +48,7 @@ public class UserAccountService {
                 normalizedEmail,
                 request.displayName().trim(),
                 role);
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
 
         return UserResponse.from(repository.save(user));
     }

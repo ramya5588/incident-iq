@@ -7,20 +7,47 @@ const api = axios.create({
     },
 })
 
-// Who changes are made as ("Acting as" in the sidebar). Sent as X-User-Id
-// so the backend can attribute timeline events. Not authentication.
-let actingUserId = null
+// Sign-in uses a session cookie. CSRF: the backend sets an XSRF-TOKEN cookie
+// and axios echoes it in the X-XSRF-TOKEN header on same-origin requests
+// (its defaults), so nothing extra is needed per call.
 
-export function setActingUserId(userId) {
-    actingUserId = userId || null
+let unauthorizedHandler = null
+
+/** Called when any non-auth request comes back 401 (session expired etc.). */
+export function onUnauthorized(handler) {
+    unauthorizedHandler = handler
 }
 
-api.interceptors.request.use((config) => {
-    if (actingUserId) {
-        config.headers['X-User-Id'] = actingUserId
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const isAuthCall = error.config?.url?.startsWith('/auth/')
+        if (error.response?.status === 401 && !isAuthCall && unauthorizedHandler) {
+            unauthorizedHandler()
+        }
+        return Promise.reject(error)
     }
-    return config
-})
+)
+
+/** The signed-in user, or null when signed out. */
+export async function getCurrentUser() {
+    try {
+        const response = await api.get('/auth/me')
+        return response.data
+    } catch (error) {
+        if (error.response?.status === 401) return null
+        throw error
+    }
+}
+
+export async function signIn(email, password) {
+    const response = await api.post('/auth/login', { email, password })
+    return response.data
+}
+
+export async function signOut() {
+    await api.post('/auth/logout')
+}
 
 export async function getIncidentPage({ status, priority, page = 0, size = 10 } = {}) {
     const params = { page, size }
@@ -74,11 +101,9 @@ export async function getIncidentEvents(id) {
     return response.data
 }
 
-export async function addIncidentComment(id, authorId, body) {
-    const response = await api.post(`/incidents/${id}/comments`, {
-        authorId,
-        body,
-    })
+/** Posted as the signed-in user. */
+export async function addIncidentComment(id, body) {
+    const response = await api.post(`/incidents/${id}/comments`, { body })
     return response.data
 }
 

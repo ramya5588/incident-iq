@@ -1,9 +1,6 @@
 package com.incidentiq.incident;
 
-import java.util.UUID;
-
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CreateIncidentRequest(
@@ -14,7 +11,6 @@ public record CreateIncidentRequest(
 
         IncidentPriority priority,
 
-        @Size(max = 100, message = "Category must not exceed 100 characters") String category,
-
-        @NotNull(message = "Created-by user ID is required") UUID createdById) {
+        @Size(max = 100, message = "Category must not exceed 100 characters") String category) {
+    // The reporter is the signed-in user, not something the client sends.
 }

@@ -32,6 +32,10 @@ public class UserAccount {
     @Column(nullable = false, length = 30)
     private UserRole role = UserRole.USER;
 
+    /** BCrypt hash; null means the user has no password and cannot sign in. */
+    @Column(name = "password_hash", length = 100)
+    private String passwordHash;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -86,6 +90,15 @@ public class UserAccount {
 
     public void setRole(UserRole role) {
         this.role = role;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    /** Takes an already-encoded hash, never a raw password. */
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     public Instant getCreatedAt() {

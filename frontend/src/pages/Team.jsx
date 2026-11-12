@@ -15,7 +15,7 @@ const ROLE_OPTIONS = [
   { value: 'ADMIN', label: 'Admin' },
 ]
 
-const EMPTY_MEMBER = { displayName: '', email: '', role: 'AGENT' }
+const EMPTY_MEMBER = { displayName: '', email: '', role: 'AGENT', password: '' }
 
 function Team() {
   const { addUser } = useCurrentUser()
@@ -117,7 +117,10 @@ function Team() {
             <div className="section-heading">
               <div>
                 <h2>Add team member</h2>
-                <p>They can be assigned incidents straight away.</p>
+                <p>
+                  They can sign in with this email and password, and can be
+                  assigned incidents straight away.
+                </p>
               </div>
             </div>
 
@@ -142,6 +145,22 @@ function Team() {
                   type="email"
                   value={newMember.email}
                   onChange={(event) => updateField('email', event.target.value)}
+                  required
+                />
+              </label>
+
+              <label>
+                First password
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={newMember.password}
+                  onChange={(event) =>
+                    updateField('password', event.target.value)
+                  }
+                  minLength={8}
+                  maxLength={72}
+                  placeholder="At least 8 characters"
                   required
                 />
               </label>

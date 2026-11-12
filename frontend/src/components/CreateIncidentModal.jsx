@@ -11,10 +11,7 @@ const EMPTY_INCIDENT = {
 
 function CreateIncidentModal({ onClose, onCreated }) {
   const [incident, setIncident] = useState(EMPTY_INCIDENT)
-  const { users, usersError, currentUser } = useCurrentUser()
-  // '' means "whoever you're acting as"; set only if picked explicitly.
-  const [pickedReporterId, setPickedReporterId] = useState('')
-  const reporterId = pickedReporterId || currentUser?.id || ''
+  const { currentUser } = useCurrentUser()
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
 
@@ -37,10 +34,8 @@ function CreateIncidentModal({ onClose, onCreated }) {
     setFormError('')
 
     try {
-      const created = await createIncident({
-        ...incident,
-        createdById: reporterId,
-      })
+      // The backend records the signed-in user as the reporter.
+      const created = await createIncident(incident)
       onCreated(created)
     } catch (requestError) {
       console.error(requestError)
@@ -138,29 +133,11 @@ function CreateIncidentModal({ onClose, onCreated }) {
             </label>
           </div>
 
-          <label>
-            Reported by
-            <select
-              value={reporterId}
-              onChange={(event) => setPickedReporterId(event.target.value)}
-              required
-            >
-              {users.length === 0 && (
-                <option value="">
-                  {usersError ? 'Users unavailable' : 'Loading users…'}
-                </option>
-              )}
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.displayName}
-                </option>
-              ))}
-            </select>
-          </label>
+          <p className="reported-as">
+            Reported as <strong>{currentUser?.displayName}</strong>
+          </p>
 
-          {(formError || usersError) && (
-            <p className="error-message">{formError || usersError}</p>
-          )}
+          {formError && <p className="error-message">{formError}</p>}
 
           <div className="form-actions">
             <button
@@ -175,7 +152,7 @@ function CreateIncidentModal({ onClose, onCreated }) {
             <button
               type="submit"
               className="primary-button"
-              disabled={submitting || !reporterId}
+              disabled={submitting}
             >
               {submitting ? 'Creating...' : 'Create incident'}
             </button>

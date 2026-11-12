@@ -4,13 +4,13 @@ export const CurrentUserContext = createContext({
   users: [],
   usersError: '',
   currentUser: null,
-  setCurrentUserId: () => {},
+  signOut: () => {},
   addUser: () => {},
 })
 
 /**
- * The acting user (stand-in for real sign-in) plus the shared user list.
- * Returns { users, usersError, currentUser, setCurrentUserId, addUser }.
+ * The signed-in user plus the shared user list.
+ * Returns { users, usersError, currentUser, signOut, addUser }.
  */
 export function useCurrentUser() {
   return useContext(CurrentUserContext)

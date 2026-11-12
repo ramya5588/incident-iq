@@ -187,31 +187,34 @@ a.nav-item {
   border-top: 1px solid #334155;
 }
 
-.sidebar-footer .acting-as {
+.sidebar-footer .signed-in-as {
   flex: 1;
   min-width: 0;
 }
 
-.acting-as label {
-  color: #94a3b8;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.signed-in-as strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.acting-as select {
-  width: 100%;
-  margin-top: 2px;
-  padding: 4px 6px;
+.sign-out-button {
+  flex-shrink: 0;
+  padding: 6px 10px;
   border: 1px solid #334155;
   border-radius: 8px;
-  background: #1e293b;
-  color: white;
-  font-weight: 600;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 12px;
   cursor: pointer;
 }
 
-.acting-as select:focus {
+.sign-out-button:hover {
+  background: #283548;
+  color: white;
+}
+
+.sign-out-button:focus-visible {
   outline: 2px solid #818cf8;
   outline-offset: 1px;
 }
@@ -682,6 +685,7 @@ a.nav-item {
 
 .modal-card label,
 .add-member-form label,
+.signin-card label,
 .edit-form label {
   display: grid;
   gap: 6px;
@@ -695,6 +699,7 @@ a.nav-item {
 .modal-card select,
 .add-member-form input,
 .add-member-form select,
+.signin-card input,
 .edit-form input,
 .edit-form textarea,
 .edit-form select {
@@ -720,6 +725,7 @@ a.nav-item {
 .modal-card select:focus,
 .add-member-form input:focus,
 .add-member-form select:focus,
+.signin-card input:focus,
 .edit-form input:focus,
 .edit-form textarea:focus,
 .edit-form select:focus {
@@ -752,7 +758,7 @@ a.nav-item {
 }
 
 .add-member-form {
-  grid-template-columns: 1.2fr 1.4fr 0.8fr;
+  grid-template-columns: 1.2fr 1.4fr 1.1fr 0.8fr;
   align-items: end;
 }
 
@@ -994,4 +1000,71 @@ a.nav-item {
 
 .details-page > p.status-message {
   margin: -16px 0 20px;
+}
+
+/* Sign-in */
+.auth-loading {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  color: #667085;
+}
+
+.signin-page {
+  display: grid;
+  min-height: 100vh;
+  padding: 16px;
+  box-sizing: border-box;
+  place-items: center;
+  background: #f5f7fb;
+}
+
+.signin-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 32px;
+  box-sizing: border-box;
+  border: 1px solid #e4e7ec;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 20px 45px rgb(15 23 42 / 8%);
+}
+
+.signin-brand {
+  margin-bottom: 28px;
+}
+
+.signin-brand strong {
+  color: #101828;
+}
+
+.signin-card h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.signin-subtitle {
+  margin: 6px 0 24px;
+  color: #667085;
+}
+
+.signin-card form {
+  display: grid;
+  gap: 16px;
+}
+
+.signin-card .primary-button {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.signin-card .error-message {
+  margin: 0;
+}
+
+.reported-as,
+.comment-author {
+  margin: 0;
+  color: #667085;
+  font-size: 14px;
 }

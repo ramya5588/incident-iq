@@ -83,18 +83,15 @@ function describeEvent(event) {
  * Bump `refreshKey` to reload after the incident changes elsewhere.
  */
 function IncidentTimeline({ incidentId, refreshKey }) {
-  const { users, currentUser } = useCurrentUser()
+  const { currentUser } = useCurrentUser()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [authorId, setAuthorId] = useState('')
   const [body, setBody] = useState('')
   const [posting, setPosting] = useState(false)
   const [postError, setPostError] = useState('')
 
-  // Defaults to whoever you're acting as; '' until picked explicitly.
-  const effectiveAuthorId = authorId || currentUser?.id || ''
 
   useEffect(() => {
     let cancelled = false
@@ -127,11 +124,7 @@ function IncidentTimeline({ incidentId, refreshKey }) {
     setPostError('')
 
     try {
-      const comment = await addIncidentComment(
-        incidentId,
-        effectiveAuthorId,
-        body
-      )
+      const comment = await addIncidentComment(incidentId, body)
       setEvents((current) => [comment, ...current])
       setBody('')
     } catch (requestError) {
@@ -157,20 +150,9 @@ function IncidentTimeline({ incidentId, refreshKey }) {
         />
 
         <div className="comment-actions">
-          <label>
-            As
-            <select
-              value={effectiveAuthorId}
-              onChange={(event) => setAuthorId(event.target.value)}
-              disabled={posting || users.length === 0}
-            >
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.displayName}
-                </option>
-              ))}
-            </select>
-          </label>
+          <span className="comment-author">
+            Commenting as <strong>{currentUser?.displayName}</strong>
+          </span>
 
           <span className="comment-count">
             {body.length}/{COMMENT_MAX_LENGTH}
@@ -179,7 +161,7 @@ function IncidentTimeline({ incidentId, refreshKey }) {
           <button
             type="submit"
             className="primary-button"
-            disabled={posting || body.trim() === '' || !effectiveAuthorId}
+            disabled={posting || body.trim() === ''}
           >
             {posting ? 'Posting...' : 'Comment'}
           </button>

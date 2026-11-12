@@ -15,7 +15,7 @@ function navClass({ isActive }) {
 
 function Sidebar() {
   const openCreateIncident = useCreateIncident()
-  const { users, usersError, currentUser, setCurrentUserId } = useCurrentUser()
+  const { currentUser, signOut } = useCurrentUser()
 
   return (
     <aside className="sidebar">
@@ -52,26 +52,19 @@ function Sidebar() {
           {currentUser ? initials(currentUser.displayName) : '?'}
         </span>
 
-        <div className="acting-as">
-          <label htmlFor="acting-as-select">Acting as</label>
-          <select
-            id="acting-as-select"
-            value={currentUser?.id ?? ''}
-            onChange={(event) => setCurrentUserId(event.target.value)}
-            disabled={users.length === 0}
-            title={usersError || undefined}
-          >
-            {users.length === 0 && (
-              <option value="">{usersError ? 'Unavailable' : 'Loading…'}</option>
-            )}
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.displayName}
-              </option>
-            ))}
-          </select>
+        <div className="signed-in-as">
+          <strong>{currentUser?.displayName}</strong>
           {currentUser && <small>{ROLE_LABELS[currentUser.role]}</small>}
         </div>
+
+        <button
+          type="button"
+          className="sign-out-button"
+          onClick={signOut}
+          title="Sign out"
+        >
+          Sign out
+        </button>
       </div>
     </aside>
   )

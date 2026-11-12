@@ -26,19 +26,6 @@ public class IncidentExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
-    @ExceptionHandler(UnknownActorException.class)
-    public ResponseEntity<ApiError> handleUnknownActor(
-            UnknownActorException exception) {
-
-        ApiError error = new ApiError(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                "Bad Request",
-                exception.getMessage());
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-    }
-
     public record ApiError(
             Instant timestamp,
             int status,

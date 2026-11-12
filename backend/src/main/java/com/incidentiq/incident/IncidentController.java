@@ -11,15 +11,17 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.incidentiq.auth.AppUserPrincipal;
 
 import jakarta.validation.Valid;
 
@@ -35,9 +37,10 @@ public class IncidentController {
 
     @PostMapping
     public ResponseEntity<IncidentResponse> createIncident(
-            @Valid @RequestBody CreateIncidentRequest request) {
+            @Valid @RequestBody CreateIncidentRequest request,
+            @AuthenticationPrincipal AppUserPrincipal actor) {
 
-        IncidentResponse response = service.createIncident(request);
+        IncidentResponse response = service.createIncident(request, actor.id());
         URI location = URI.create("/api/incidents/" + response.id());
 
         return ResponseEntity.created(location).body(response);
@@ -75,26 +78,26 @@ public class IncidentController {
     public IncidentResponse updateIncident(
             @PathVariable UUID incidentId,
             @Valid @RequestBody UpdateIncidentRequest request,
-            @RequestHeader(name = ActorHeader.NAME, required = false) UUID actorId) {
+            @AuthenticationPrincipal AppUserPrincipal actor) {
 
-        return service.updateIncident(incidentId, request, actorId);
+        return service.updateIncident(incidentId, request, actor.id());
     }
 
     @PostMapping("/{incidentId}/triage")
     public IncidentResponse triageIncident(
             @PathVariable UUID incidentId,
-            @RequestHeader(name = ActorHeader.NAME, required = false) UUID actorId) {
+            @AuthenticationPrincipal AppUserPrincipal actor) {
 
-        return service.triageIncident(incidentId, actorId);
+        return service.triageIncident(incidentId, actor.id());
     }
 
     @PatchMapping("/{incidentId}/status")
     public IncidentResponse updateStatus(
             @PathVariable UUID incidentId,
             @Valid @RequestBody UpdateIncidentStatusRequest request,
-            @RequestHeader(name = ActorHeader.NAME, required = false) UUID actorId) {
+            @AuthenticationPrincipal AppUserPrincipal actor) {
 
-        return service.updateStatus(incidentId, request, actorId);
+        return service.updateStatus(incidentId, request, actor.id());
     }
 
     @GetMapping("/{incidentId}/events")
@@ -107,9 +110,10 @@ public class IncidentController {
     @PostMapping("/{incidentId}/comments")
     public ResponseEntity<IncidentEventResponse> addComment(
             @PathVariable UUID incidentId,
-            @Valid @RequestBody CreateCommentRequest request) {
+            @Valid @RequestBody CreateCommentRequest request,
+            @AuthenticationPrincipal AppUserPrincipal actor) {
 
-        IncidentEventResponse comment = service.addComment(incidentId, request);
+        IncidentEventResponse comment = service.addComment(incidentId, request, actor.id());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(comment);
     }
@@ -118,8 +122,8 @@ public class IncidentController {
     public IncidentResponse updateAssignee(
             @PathVariable UUID incidentId,
             @RequestBody UpdateIncidentAssigneeRequest request,
-            @RequestHeader(name = ActorHeader.NAME, required = false) UUID actorId) {
+            @AuthenticationPrincipal AppUserPrincipal actor) {
 
-        return service.updateAssignee(incidentId, request, actorId);
+        return service.updateAssignee(incidentId, request, actor.id());
     }
 }

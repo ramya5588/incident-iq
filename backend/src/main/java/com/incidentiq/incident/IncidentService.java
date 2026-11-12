@@ -52,20 +52,17 @@ public class IncidentService {
                 .orElseThrow(() -> new UserNotFoundException(userId));
     }
 
-    /** Resolves the acting user; null in means "unknown", not an error. */
+    /** The signed-in user making the change (id comes from the session). */
     private UserAccount findActor(UUID actorId) {
-        if (actorId == null) {
-            return null;
-        }
-
-        return userRepository.findById(actorId)
-                .orElseThrow(() -> new UnknownActorException(actorId));
+        return findUser(actorId);
     }
 
     @Transactional
-    public IncidentResponse createIncident(CreateIncidentRequest request) {
-        UserAccount creator = userRepository.findById(request.createdById())
-                .orElseThrow(() -> new UserNotFoundException(request.createdById()));
+    public IncidentResponse createIncident(
+            CreateIncidentRequest request,
+            UUID reporterId) {
+
+        UserAccount creator = findUser(reporterId);
 
         IncidentPriority priority = request.priority() == null
                 ? IncidentPriority.MEDIUM
@@ -224,10 +221,11 @@ public class IncidentService {
     @Transactional
     public IncidentEventResponse addComment(
             UUID incidentId,
-            CreateCommentRequest request) {
+            CreateCommentRequest request,
+            UUID authorId) {
 
         Incident incident = findIncident(incidentId);
-        UserAccount author = findUser(request.authorId());
+        UserAccount author = findUser(authorId);
 
         IncidentEvent comment = eventRepository.saveAndFlush(
                 IncidentEvent.comment(incident, author, request.body()));
