@@ -108,7 +108,10 @@ public class IncidentService {
 
         Page<Incident> incidents;
 
-        if (status != null) {
+        if (status != null && priority != null) {
+            incidents = incidentRepository.findAllByStatusAndPriority(
+                    status, priority, pageable);
+        } else if (status != null) {
             incidents = incidentRepository.findAllByStatus(status, pageable);
         } else if (priority != null) {
             incidents = incidentRepository.findAllByPriority(priority, pageable);

@@ -87,6 +87,85 @@ button {
   box-shadow: inset 3px 0 #818cf8;
 }
 
+a.secondary-button {
+  display: inline-block;
+  text-decoration: none;
+}
+
+a.nav-item {
+  display: block;
+  box-sizing: border-box;
+  font: inherit;
+  text-decoration: none;
+}
+
+/* All incidents page */
+
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.list-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.list-toolbar select {
+  min-width: 170px;
+  padding: 9px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #101828;
+  font-size: 15px;
+}
+
+.list-count {
+  margin-left: auto;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.table-row.list-row {
+  grid-template-columns: 2.2fr 1fr 0.8fr 0.9fr 0.9fr;
+}
+
+.created-at {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .sidebar-footer {
   display: flex;
   align-items: center;

@@ -15,4 +15,9 @@ public interface IncidentRepository extends JpaRepository<Incident, UUID> {
     Page<Incident> findAllByPriority(
             IncidentPriority priority,
             Pageable pageable);
+
+    Page<Incident> findAllByStatusAndPriority(
+            IncidentStatus status,
+            IncidentPriority priority,
+            Pageable pageable);
 }

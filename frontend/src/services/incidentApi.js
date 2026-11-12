@@ -11,6 +11,15 @@ export async function getIncidents() {
     const response = await api.get('/incidents')
     return response.data.content ?? []
 }
+export async function getIncidentPage({ status, priority, page = 0, size = 10 } = {}) {
+    const params = { page, size }
+    if (status) params.status = status
+    if (priority) params.priority = priority
+
+    const response = await api.get('/incidents', { params })
+    return response.data
+}
+
 export async function getIncidentById(id) {
     const response = await api.get(`/incidents/${id}`)
     return response.data

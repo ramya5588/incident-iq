@@ -6,6 +6,8 @@ import {
 import './App.css'
 import { Link, Routes, Route } from 'react-router-dom'
 import IncidentDetails from './pages/IncidentDetails'
+import IncidentsList from './pages/IncidentsList'
+import Sidebar from './components/Sidebar'
 
 function Dashboard() {
   const [incidents, setIncidents] = useState([])
@@ -93,32 +95,7 @@ function Dashboard() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">IQ</span>
-
-          <div>
-            <strong>IncidentIQ</strong>
-            <small>Intelligent Operations</small>
-          </div>
-        </div>
-
-        <nav>
-          <button className="nav-item active">Dashboard</button>
-          <button className="nav-item">Incidents</button>
-          <button className="nav-item">Create incident</button>
-          <button className="nav-item">Team</button>
-        </nav>
-
-        <div className="sidebar-footer">
-          <span className="avatar">RN</span>
-
-          <div>
-            <strong>Ramya Navuluri</strong>
-            <small>Administrator</small>
-          </div>
-        </div>
-      </aside>
+      <Sidebar />
 
       <main className="main-content">
         <header className="page-header">
@@ -171,7 +148,9 @@ function Dashboard() {
               <p>Latest incidents across your support environment</p>
             </div>
 
-            <button className="secondary-button">View all</button>
+            <Link className="secondary-button" to="/incidents">
+              View all
+            </Link>
           </div>
 
           <div className="incident-table">
@@ -344,6 +323,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Dashboard />} />
+      <Route path="/incidents" element={<IncidentsList />} />
       <Route path="/incidents/:id" element={<IncidentDetails />} />
     </Routes>
   )
