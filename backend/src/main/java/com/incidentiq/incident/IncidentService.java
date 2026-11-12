@@ -1,5 +1,8 @@
 package com.incidentiq.incident;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import com.incidentiq.ai.IncidentTriageClient;
@@ -109,6 +112,30 @@ public class IncidentService {
 
         return IncidentResponse.from(
                 incidentRepository.saveAndFlush(incident));
+    }
+
+    @Transactional(readOnly = true)
+    public IncidentStatsResponse getStats(Instant resolvedSince) {
+        Instant since = resolvedSince != null
+                ? resolvedSince
+                : LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        long total = incidentRepository.count();
+        long aiTriaged = incidentRepository.countByAiTriagedAtIsNotNull();
+        int aiTriagedPercentage = total == 0
+                ? 0
+                : (int) Math.round(aiTriaged * 100.0 / total);
+
+        return new IncidentStatsResponse(
+                total,
+                incidentRepository.countByStatus(IncidentStatus.OPEN),
+                incidentRepository.countByStatus(IncidentStatus.IN_PROGRESS),
+                incidentRepository.countByStatus(IncidentStatus.RESOLVED),
+                incidentRepository.countByStatus(IncidentStatus.CLOSED),
+                since,
+                incidentRepository.countByResolvedAtGreaterThanEqual(since),
+                aiTriaged,
+                aiTriagedPercentage);
     }
 
     @Transactional(readOnly = true)

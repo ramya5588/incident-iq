@@ -1,5 +1,6 @@
 package com.incidentiq.incident;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -20,4 +21,10 @@ public interface IncidentRepository extends JpaRepository<Incident, UUID> {
             IncidentStatus status,
             IncidentPriority priority,
             Pageable pageable);
+
+    long countByStatus(IncidentStatus status);
+
+    long countByResolvedAtGreaterThanEqual(Instant since);
+
+    long countByAiTriagedAtIsNotNull();
 }

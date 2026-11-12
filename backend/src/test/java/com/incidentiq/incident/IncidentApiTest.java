@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -226,6 +228,83 @@ class IncidentApiTest {
                         .param("status", "RESOLVED")
                         .param("priority", "LOW"))
                 .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    // --- stats -------------------------------------------------------------
+
+    @Test
+    void statsAreZeroWithNoIncidents() throws Exception {
+        mockMvc.perform(get("/api/incidents/stats"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0))
+                .andExpect(jsonPath("$.open").value(0))
+                .andExpect(jsonPath("$.resolvedInWindow").value(0))
+                .andExpect(jsonPath("$.aiTriagedPercentage").value(0))
+                .andExpect(jsonPath("$.resolvedSince").isNotEmpty());
+    }
+
+    @Test
+    void statsCountAcrossAllIncidentsNotJustOnePage() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        // More than the default list page size (20) to prove counts aren't page-limited
+        for (int i = 0; i < 22; i++) {
+            createIncident("Open " + i, "LOW", creatorId);
+        }
+        String inProgress = createIncident("Working on it", "MEDIUM", creatorId);
+        setStatus(inProgress, "IN_PROGRESS");
+        String resolved = createIncident("Fixed", "HIGH", creatorId);
+        setStatus(resolved, "RESOLVED");
+        String closed = createIncident("Done", "HIGH", creatorId);
+        setStatus(closed, "CLOSED");
+
+        mockMvc.perform(post("/api/incidents/{id}/triage", resolved))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/incidents/stats"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(25))
+                .andExpect(jsonPath("$.open").value(22))
+                .andExpect(jsonPath("$.inProgress").value(1))
+                .andExpect(jsonPath("$.resolved").value(1))
+                .andExpect(jsonPath("$.closed").value(1))
+                .andExpect(jsonPath("$.resolvedInWindow").value(1))
+                .andExpect(jsonPath("$.aiTriaged").value(1))
+                .andExpect(jsonPath("$.aiTriagedPercentage").value(4));
+    }
+
+    @Test
+    void resolvedInWindowRespectsResolvedSince() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String incidentId = createIncident("Resolved now", "HIGH", creatorId);
+        setStatus(incidentId, "RESOLVED");
+
+        Instant now = Instant.now();
+
+        mockMvc.perform(get("/api/incidents/stats")
+                        .param("resolvedSince", now.minus(1, ChronoUnit.HOURS).toString()))
+                .andExpect(jsonPath("$.resolvedInWindow").value(1));
+
+        mockMvc.perform(get("/api/incidents/stats")
+                        .param("resolvedSince", now.plus(1, ChronoUnit.HOURS).toString()))
+                .andExpect(jsonPath("$.resolvedInWindow").value(0));
+    }
+
+    @Test
+    void reopenedIncidentLeavesResolvedWindow() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String incidentId = createIncident("Flapping", "HIGH", creatorId);
+        setStatus(incidentId, "RESOLVED");
+        setStatus(incidentId, "OPEN");
+
+        mockMvc.perform(get("/api/incidents/stats"))
+                .andExpect(jsonPath("$.open").value(1))
+                .andExpect(jsonPath("$.resolvedInWindow").value(0));
+    }
+
+    @Test
+    void invalidResolvedSinceIsRejected() throws Exception {
+        mockMvc.perform(get("/api/incidents/stats").param("resolvedSince", "yesterday"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

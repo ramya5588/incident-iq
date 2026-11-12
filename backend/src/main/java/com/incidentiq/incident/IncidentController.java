@@ -1,6 +1,7 @@
 package com.incidentiq.incident;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -37,6 +38,13 @@ public class IncidentController {
         URI location = URI.create("/api/incidents/" + response.id());
 
         return ResponseEntity.created(location).body(response);
+    }
+
+    @GetMapping("/stats")
+    public IncidentStatsResponse getStats(
+            @RequestParam(required = false) Instant resolvedSince) {
+
+        return service.getStats(resolvedSince);
     }
 
     @GetMapping("/{incidentId}")

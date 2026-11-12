@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
   createIncident,
-  getIncidents,
+  getIncidentPage,
+  getIncidentStats,
 } from './services/incidentApi'
 import './App.css'
 import { Link, Routes, Route } from 'react-router-dom'
@@ -9,10 +10,14 @@ import IncidentDetails from './pages/IncidentDetails'
 import IncidentsList from './pages/IncidentsList'
 import Sidebar from './components/Sidebar'
 
+const RECENT_INCIDENT_LIMIT = 5
+
 function Dashboard() {
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [stats, setStats] = useState(null)
+  const [statsError, setStatsError] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
 
   const [newIncident, setNewIncident] = useState({
@@ -26,33 +31,27 @@ function Dashboard() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
 
-  const openIncidentCount = incidents.filter(
-    (incident) => incident.status === 'OPEN'
-  ).length
-  const inProgressCount = incidents.filter(
-    (incident) => incident.status === 'IN_PROGRESS'
-  ).length
-  const today = new Date().toISOString().slice(0, 10)
+  async function loadStats() {
+    try {
+      setStats(await getIncidentStats())
+      setStatsError(false)
+    } catch (requestError) {
+      console.error(requestError)
+      setStatsError(true)
+    }
+  }
 
-  const resolvedTodayCount = incidents.filter(
-    (incident) =>
-      incident.status === 'RESOLVED' &&
-      incident.resolvedAt?.slice(0, 10) === today
-  ).length
-  const aiTriagedCount = incidents.filter(
-    (incident) => incident.aiTriagedAt
-  ).length
-
-  const aiTriagedPercentage =
-    incidents.length === 0
-      ? 0
-      : Math.round((aiTriagedCount / incidents.length) * 100)
+  function statValue(value, suffix = '') {
+    if (statsError) return '—'
+    if (stats === null) return '…'
+    return `${value}${suffix}`
+  }
 
   useEffect(() => {
     async function loadIncidents() {
       try {
-        const data = await getIncidents()
-        setIncidents(data)
+        const data = await getIncidentPage({ size: RECENT_INCIDENT_LIMIT })
+        setIncidents(data.content ?? [])
       } catch (requestError) {
         console.error(requestError)
         setError('Unable to load incidents from the backend.')
@@ -61,7 +60,17 @@ function Dashboard() {
       }
     }
 
+    async function loadInitialStats() {
+      try {
+        setStats(await getIncidentStats())
+      } catch (requestError) {
+        console.error(requestError)
+        setStatsError(true)
+      }
+    }
+
     loadIncidents()
+    loadInitialStats()
   }, [])
   async function handleCreateIncident(event) {
     event.preventDefault()
@@ -71,10 +80,10 @@ function Dashboard() {
     try {
       const createdIncident = await createIncident(newIncident)
 
-      setIncidents((currentIncidents) => [
-        createdIncident,
-        ...currentIncidents,
-      ])
+      setIncidents((currentIncidents) =>
+        [createdIncident, ...currentIncidents].slice(0, RECENT_INCIDENT_LIMIT)
+      )
+      loadStats()
 
       setShowCreateForm(false)
 
@@ -117,27 +126,30 @@ function Dashboard() {
         <section className="stats-grid">
           <article className="stat-card">
             <span>Open incidents</span>
-            <strong>{openIncidentCount}</strong>
-            <small>Live data from the backend</small>
+            <strong>{statValue(stats?.open)}</strong>
+            <small>
+              {statsError ? 'Unable to load stats' : 'Awaiting action'}
+            </small>
           </article>
 
           <article className="stat-card">
             <span>In progress</span>
-            <strong>{inProgressCount}</strong>
-            <small>Live data from the backend</small>
+            <strong>{statValue(stats?.inProgress)}</strong>
+            <small>Being worked on</small>
           </article>
-
 
           <article className="stat-card">
             <span>Resolved today</span>
-            <strong>{resolvedTodayCount}</strong>
-            <small>Live data from the backend</small>
+            <strong>{statValue(stats?.resolvedInWindow)}</strong>
+            <small>Since midnight, your time</small>
           </article>
 
           <article className="stat-card accent-card">
             <span>AI triaged</span>
-            <strong>{aiTriagedPercentage}%</strong>
-            <small>of loaded incidents</small>
+            <strong>{statValue(stats?.aiTriagedPercentage, '%')}</strong>
+            <small>
+              {stats ? `of all ${stats.total} incidents` : 'of all incidents'}
+            </small>
           </article>
         </section>
 
@@ -145,7 +157,10 @@ function Dashboard() {
           <div className="section-heading">
             <div>
               <h2>Recent incidents</h2>
-              <p>Latest incidents across your support environment</p>
+              <p>
+                The {RECENT_INCIDENT_LIMIT} latest incidents across your
+                support environment
+              </p>
             </div>
 
             <Link className="secondary-button" to="/incidents">
