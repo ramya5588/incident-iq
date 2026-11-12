@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import com.incidentiq.ai.IncidentTriageClient;
@@ -25,17 +26,30 @@ public class IncidentService {
     private final UserAccountRepository userRepository;
     private final EntityManager entityManager;
     private final IncidentTriageClient triageClient;
+    private final IncidentEventRepository eventRepository;
 
     public IncidentService(
             IncidentRepository incidentRepository,
             UserAccountRepository userRepository,
             EntityManager entityManager,
-            IncidentTriageClient triageClient) {
+            IncidentTriageClient triageClient,
+            IncidentEventRepository eventRepository) {
 
         this.incidentRepository = incidentRepository;
         this.userRepository = userRepository;
         this.entityManager = entityManager;
         this.triageClient = triageClient;
+        this.eventRepository = eventRepository;
+    }
+
+    private Incident findIncident(UUID incidentId) {
+        return incidentRepository.findById(incidentId)
+                .orElseThrow(() -> new IncidentNotFoundException(incidentId));
+    }
+
+    private UserAccount findUser(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
     }
 
     @Transactional
@@ -60,6 +74,7 @@ public class IncidentService {
                 creator);
 
         Incident savedIncident = incidentRepository.saveAndFlush(incident);
+        eventRepository.save(IncidentEvent.created(savedIncident, creator));
 
         entityManager.refresh(savedIncident);
 
@@ -68,8 +83,7 @@ public class IncidentService {
 
     @Transactional
     public IncidentResponse triageIncident(UUID incidentId) {
-        Incident incident = incidentRepository.findById(incidentId)
-                .orElseThrow(() -> new IncidentNotFoundException(incidentId));
+        Incident incident = findIncident(incidentId);
 
         TriageResult result = triageClient.triage(
                 incident.getTitle(),
@@ -78,6 +92,8 @@ public class IncidentService {
         incident.applyAiTriage(result);
 
         Incident savedIncident = incidentRepository.saveAndFlush(incident);
+        eventRepository.save(IncidentEvent.aiTriaged(
+                savedIncident, savedIncident.getAiSummary()));
 
         return IncidentResponse.from(savedIncident);
     }
@@ -87,10 +103,15 @@ public class IncidentService {
             UUID incidentId,
             UpdateIncidentStatusRequest request) {
 
-        Incident incident = incidentRepository.findById(incidentId)
-                .orElseThrow(() -> new IncidentNotFoundException(incidentId));
+        Incident incident = findIncident(incidentId);
+        IncidentStatus previous = incident.getStatus();
 
         incident.updateStatus(request.status());
+
+        if (previous != request.status()) {
+            eventRepository.save(IncidentEvent.statusChanged(
+                    incident, previous, request.status()));
+        }
 
         return IncidentResponse.from(
                 incidentRepository.saveAndFlush(incident));
@@ -101,18 +122,49 @@ public class IncidentService {
             UUID incidentId,
             UpdateIncidentAssigneeRequest request) {
 
-        Incident incident = incidentRepository.findById(incidentId)
-                .orElseThrow(() -> new IncidentNotFoundException(incidentId));
+        Incident incident = findIncident(incidentId);
+        UserAccount previous = incident.getAssignedTo();
 
         UserAccount assignee = request.assigneeId() == null
                 ? null
-                : userRepository.findById(request.assigneeId())
-                        .orElseThrow(() -> new UserNotFoundException(request.assigneeId()));
+                : findUser(request.assigneeId());
 
         incident.assignTo(assignee);
 
+        UUID previousId = previous == null ? null : previous.getId();
+        if (!Objects.equals(previousId, request.assigneeId())) {
+            eventRepository.save(IncidentEvent.assigneeChanged(
+                    incident, previous, assignee));
+        }
+
         return IncidentResponse.from(
                 incidentRepository.saveAndFlush(incident));
+    }
+
+    @Transactional(readOnly = true)
+    public List<IncidentEventResponse> getEvents(UUID incidentId) {
+        if (!incidentRepository.existsById(incidentId)) {
+            throw new IncidentNotFoundException(incidentId);
+        }
+
+        return eventRepository.findAllByIncidentIdOrderByIdDesc(incidentId)
+                .stream()
+                .map(IncidentEventResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public IncidentEventResponse addComment(
+            UUID incidentId,
+            CreateCommentRequest request) {
+
+        Incident incident = findIncident(incidentId);
+        UserAccount author = findUser(request.authorId());
+
+        IncidentEvent comment = eventRepository.saveAndFlush(
+                IncidentEvent.comment(incident, author, request.body()));
+
+        return IncidentEventResponse.from(comment);
     }
 
     @Transactional(readOnly = true)

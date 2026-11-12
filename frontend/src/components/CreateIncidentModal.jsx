@@ -4,9 +4,7 @@ import {
   describeApiError,
   getUsers,
 } from '../services/incidentApi'
-
-// Default reporter until there is real sign-in.
-const DEFAULT_REPORTER_ID = '918bface-4f32-4450-9507-588685f3392b'
+import { DEFAULT_USER_ID } from '../config'
 
 const EMPTY_INCIDENT = {
   title: '',
@@ -28,7 +26,7 @@ function CreateIncidentModal({ onClose, onCreated }) {
         const data = await getUsers()
         setUsers(data)
         const preferred =
-          data.find((user) => user.id === DEFAULT_REPORTER_ID) ?? data[0]
+          data.find((user) => user.id === DEFAULT_USER_ID) ?? data[0]
         setReporterId(preferred?.id ?? '')
       } catch (requestError) {
         console.error(requestError)

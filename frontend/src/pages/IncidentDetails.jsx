@@ -7,6 +7,7 @@ import {
     updateIncidentAssignee,
     updateIncidentStatus,
 } from '../services/incidentApi'
+import IncidentTimeline from '../components/IncidentTimeline'
 
 const STATUS_OPTIONS = [
     { value: 'OPEN', label: 'Open' },
@@ -33,6 +34,8 @@ function IncidentDetails() {
     const [updatingAssignee, setUpdatingAssignee] = useState(false)
     const [assigneeError, setAssigneeError] = useState('')
     const [assigneeMessage, setAssigneeMessage] = useState('')
+    const [timelineKey, setTimelineKey] = useState(0)
+    const refreshTimeline = () => setTimelineKey((key) => key + 1)
 
     useEffect(() => {
         async function loadUsers() {
@@ -71,6 +74,7 @@ function IncidentDetails() {
         try {
             const updatedIncident = await triageIncident(id)
             setIncident(updatedIncident)
+            refreshTimeline()
         } catch (requestError) {
             console.error(requestError)
             setTriageError('Unable to run AI triage. Please try again.')
@@ -90,6 +94,7 @@ function IncidentDetails() {
             setIncident(updatedIncident)
             setSelectedStatus(updatedIncident.status)
             setStatusMessage('Status updated.')
+            refreshTimeline()
         } catch (requestError) {
             console.error(requestError)
             setStatusError('Unable to update the status. Please try again.')
@@ -116,6 +121,7 @@ function IncidentDetails() {
                     ? `Assigned to ${updatedIncident.assignedToName}.`
                     : 'Incident unassigned.'
             )
+            refreshTimeline()
         } catch (requestError) {
             console.error(requestError)
             setAssigneeError('Unable to update the assignee. Please try again.')
@@ -264,7 +270,7 @@ function IncidentDetails() {
             )}
 
             {incident.aiSummary && (
-                <section>
+                <section className="ai-section">
                     <h2>AI triage</h2>
 
                     <p>
@@ -286,6 +292,12 @@ function IncidentDetails() {
                     </p>
                 </section>
             )}
+
+            <IncidentTimeline
+                incidentId={id}
+                users={users}
+                refreshKey={timelineKey}
+            />
         </main>
     )
 }

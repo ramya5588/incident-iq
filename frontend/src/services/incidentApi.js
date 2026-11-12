@@ -48,6 +48,19 @@ export async function updateIncidentAssignee(id, assigneeId) {
     return response.data
 }
 
+export async function getIncidentEvents(id) {
+    const response = await api.get(`/incidents/${id}/events`)
+    return response.data
+}
+
+export async function addIncidentComment(id, authorId, body) {
+    const response = await api.post(`/incidents/${id}/comments`, {
+        authorId,
+        body,
+    })
+    return response.data
+}
+
 export async function getUsers() {
     const response = await api.get('/users')
     return response.data

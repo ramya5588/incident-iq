@@ -518,7 +518,7 @@ a.nav-item {
   color: #101828;
 }
 
-.details-page section:last-child {
+.details-page section.ai-section {
   border-left: 5px solid #665cf6;
   background: linear-gradient(135deg, #ffffff, #f4f1ff);
 }
@@ -775,4 +775,150 @@ a.nav-item {
   .add-member-form {
     grid-template-columns: 1fr;
   }
+}
+
+/* Incident activity timeline */
+
+.details-page .primary-button + .error-message,
+.details-page > .primary-button {
+  margin-bottom: 24px;
+}
+
+.comment-form {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.comment-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 12px;
+  color: #101828;
+  font-size: 15px;
+  resize: vertical;
+}
+
+.comment-form textarea:focus,
+.comment-actions select:focus {
+  border-color: #6366f1;
+  outline: 3px solid rgb(99 102 241 / 20%);
+}
+
+.comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.comment-actions label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.comment-actions select {
+  padding: 8px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #101828;
+  font-size: 14px;
+}
+
+.comment-count {
+  margin-left: auto;
+  color: #98a2b3;
+  font-size: 12px;
+}
+
+.timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline-item {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding-bottom: 20px;
+}
+
+.timeline-item:not(:last-child)::before {
+  position: absolute;
+  top: 16px;
+  bottom: 0;
+  left: 5px;
+  width: 2px;
+  background: #e2e8f0;
+  content: '';
+}
+
+.timeline-dot {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+
+.timeline-item.comment .timeline-dot {
+  background: #6366f1;
+}
+
+.timeline-item.status_changed .timeline-dot {
+  background: #f59e0b;
+}
+
+.timeline-item.assignee_changed .timeline-dot {
+  background: #0ea5e9;
+}
+
+.timeline-item.ai_triaged .timeline-dot {
+  background: #8b5cf6;
+}
+
+.timeline-body {
+  min-width: 0;
+}
+
+.details-page section .timeline-title {
+  margin: 0;
+  color: #101828;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.details-page section .timeline-comment {
+  margin: 6px 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #f4f1ff;
+  color: #344054;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.details-page section .timeline-note {
+  margin: 4px 0;
+  color: #667085;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.timeline-time {
+  color: #98a2b3;
+  font-size: 12px;
+}
+
+.details-page section p.timeline-empty {
+  color: #98a2b3;
 }

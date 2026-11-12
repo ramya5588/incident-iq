@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -82,6 +83,23 @@ public class IncidentController {
             @Valid @RequestBody UpdateIncidentStatusRequest request) {
 
         return service.updateStatus(incidentId, request);
+    }
+
+    @GetMapping("/{incidentId}/events")
+    public List<IncidentEventResponse> getEvents(
+            @PathVariable UUID incidentId) {
+
+        return service.getEvents(incidentId);
+    }
+
+    @PostMapping("/{incidentId}/comments")
+    public ResponseEntity<IncidentEventResponse> addComment(
+            @PathVariable UUID incidentId,
+            @Valid @RequestBody CreateCommentRequest request) {
+
+        IncidentEventResponse comment = service.addComment(incidentId, request);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(comment);
     }
 
     @PatchMapping("/{incidentId}/assignee")

@@ -307,6 +307,150 @@ class IncidentApiTest {
                 .andExpect(status().isBadRequest());
     }
 
+    // --- activity timeline -------------------------------------------------
+
+    private void setAssignee(String incidentId, String assigneeId) throws Exception {
+        String value = assigneeId == null ? "null" : "\"" + assigneeId + "\"";
+        mockMvc.perform(patch("/api/incidents/{id}/assignee", incidentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assigneeId\": " + value + "}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void newIncidentHasCreatedEventByCreator() throws Exception {
+        String creatorId = createUser("Casey Creator", "USER");
+        String incidentId = createIncident("Timeline start", "LOW", creatorId);
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].type").value("CREATED"))
+                .andExpect(jsonPath("$[0].actorId").value(creatorId))
+                .andExpect(jsonPath("$[0].actorName").value("Casey Creator"))
+                .andExpect(jsonPath("$[0].createdAt").isNotEmpty());
+    }
+
+    @Test
+    void timelineRecordsChangesNewestFirst() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String alexId = createUser("Alex Agent", "AGENT");
+        String samId = createUser("Sam Agent", "AGENT");
+        String incidentId = createIncident("Busy incident", "HIGH", creatorId);
+
+        setStatus(incidentId, "IN_PROGRESS");
+        setAssignee(incidentId, alexId);
+        setAssignee(incidentId, samId);
+        mockMvc.perform(post("/api/incidents/{id}/triage", incidentId))
+                .andExpect(status().isOk());
+        setAssignee(incidentId, null);
+        setStatus(incidentId, "RESOLVED");
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$.length()").value(7))
+                .andExpect(jsonPath("$[0].type").value("STATUS_CHANGED"))
+                .andExpect(jsonPath("$[0].fromValue").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$[0].toValue").value("RESOLVED"))
+                .andExpect(jsonPath("$[1].type").value("ASSIGNEE_CHANGED"))
+                .andExpect(jsonPath("$[1].fromValue").value("Sam Agent"))
+                .andExpect(jsonPath("$[1].toValue").value(nullValue()))
+                .andExpect(jsonPath("$[2].type").value("AI_TRIAGED"))
+                .andExpect(jsonPath("$[2].message").isNotEmpty())
+                .andExpect(jsonPath("$[3].type").value("ASSIGNEE_CHANGED"))
+                .andExpect(jsonPath("$[3].fromValue").value("Alex Agent"))
+                .andExpect(jsonPath("$[3].toValue").value("Sam Agent"))
+                .andExpect(jsonPath("$[4].type").value("ASSIGNEE_CHANGED"))
+                .andExpect(jsonPath("$[4].fromValue").value(nullValue()))
+                .andExpect(jsonPath("$[4].toValue").value("Alex Agent"))
+                .andExpect(jsonPath("$[5].type").value("STATUS_CHANGED"))
+                .andExpect(jsonPath("$[5].fromValue").value("OPEN"))
+                .andExpect(jsonPath("$[5].toValue").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$[6].type").value("CREATED"));
+    }
+
+    @Test
+    void unchangedValuesDoNotAddEvents() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String agentId = createUser("Alex Agent", "AGENT");
+        String incidentId = createIncident("No-op updates", "LOW", creatorId);
+
+        setStatus(incidentId, "OPEN");
+        setAssignee(incidentId, null);
+        setAssignee(incidentId, agentId);
+        setAssignee(incidentId, agentId);
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].type").value("ASSIGNEE_CHANGED"))
+                .andExpect(jsonPath("$[1].type").value("CREATED"));
+    }
+
+    @Test
+    void addsTrimmedCommentToTimeline() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String agentId = createUser("Alex Agent", "AGENT");
+        String incidentId = createIncident("Needs notes", "MEDIUM", creatorId);
+
+        mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"authorId": "%s", "body": "  Rolled back deploy 4.2  "}
+                                """.formatted(agentId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.type").value("COMMENT"))
+                .andExpect(jsonPath("$.message").value("Rolled back deploy 4.2"))
+                .andExpect(jsonPath("$.actorName").value("Alex Agent"))
+                .andExpect(jsonPath("$.id").isNumber());
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].type").value("COMMENT"))
+                .andExpect(jsonPath("$[0].message").value("Rolled back deploy 4.2"));
+    }
+
+    @Test
+    void rejectsInvalidComments() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String incidentId = createIncident("Validation", "LOW", creatorId);
+
+        mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"authorId\": \"" + creatorId + "\", \"body\": \"   \"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"body\": \"No author\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"authorId\": \"" + creatorId + "\", \"body\": \""
+                                + "x".repeat(2001) + "\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/incidents/{id}/comments", incidentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"authorId\": \"" + UNKNOWN_ID + "\", \"body\": \"Hi\"}"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/incidents/{id}/events", incidentId))
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void eventsAndCommentsOnUnknownIncidentReturn404() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+
+        mockMvc.perform(get("/api/incidents/{id}/events", UNKNOWN_ID))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(post("/api/incidents/{id}/comments", UNKNOWN_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"authorId\": \"" + creatorId + "\", \"body\": \"Hi\"}"))
+                .andExpect(status().isNotFound());
+    }
+
     // --- workload ----------------------------------------------------------
 
     @Test
