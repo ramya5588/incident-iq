@@ -11,4 +11,13 @@ public record CreateUserRequest(
         @NotBlank(message = "Display name is required") @Size(max = 120, message = "Display name must not exceed 120 characters") String displayName,
 
         UserRole role) {
+
+    /**
+     * Trim input before bean validation runs, so an address with stray
+     * surrounding spaces is cleaned up rather than rejected by {@code @Email}.
+     */
+    public CreateUserRequest {
+        email = email == null ? null : email.trim();
+        displayName = displayName == null ? null : displayName.trim();
+    }
 }

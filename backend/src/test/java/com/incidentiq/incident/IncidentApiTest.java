@@ -307,6 +307,42 @@ class IncidentApiTest {
                 .andExpect(status().isBadRequest());
     }
 
+    // --- workload ----------------------------------------------------------
+
+    @Test
+    void workloadCountsOnlyActiveAssignedIncidents() throws Exception {
+        String creatorId = createUser("Creator", "USER");
+        String alexId = createUser("Alex Agent", "AGENT");
+        String samId = createUser("Sam Agent", "AGENT");
+
+        String open = createIncident("Open", "LOW", creatorId);
+        String inProgress = createIncident("In progress", "LOW", creatorId);
+        String resolved = createIncident("Resolved", "LOW", creatorId);
+        String samsResolved = createIncident("Sam resolved", "LOW", creatorId);
+        createIncident("Unassigned", "LOW", creatorId);
+
+        for (String id : new String[] {open, inProgress, resolved}) {
+            mockMvc.perform(patch("/api/incidents/{id}/assignee", id)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"assigneeId\": \"" + alexId + "\"}"))
+                    .andExpect(status().isOk());
+        }
+        mockMvc.perform(patch("/api/incidents/{id}/assignee", samsResolved)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assigneeId\": \"" + samId + "\"}"))
+                .andExpect(status().isOk());
+
+        setStatus(inProgress, "IN_PROGRESS");
+        setStatus(resolved, "RESOLVED");
+        setStatus(samsResolved, "RESOLVED");
+
+        mockMvc.perform(get("/api/incidents/workload"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].userId").value(alexId))
+                .andExpect(jsonPath("$[0].activeCount").value(2));
+    }
+
     @Test
     void paginatesResults() throws Exception {
         String creatorId = createUser("Creator", "USER");

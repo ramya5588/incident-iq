@@ -53,6 +53,31 @@ export async function getUsers() {
     return response.data
 }
 
+export async function createUser(user) {
+    const response = await api.post('/users', user)
+    return response.data
+}
+
+export async function getWorkload() {
+    const response = await api.get('/incidents/workload')
+    return response.data
+}
+
+/**
+ * Turns an API error into a readable message, using the backend's
+ * message and per-field validation details when present.
+ */
+export function describeApiError(requestError, fallback) {
+    const data = requestError?.response?.data
+    if (data?.details && Object.keys(data.details).length > 0) {
+        return Object.values(data.details).join(' ')
+    }
+    if (data?.message && requestError.response.status < 500) {
+        return data.message
+    }
+    return fallback
+}
+
 export async function updateIncidentStatus(id, status) {
     const response = await api.patch(`/incidents/${id}/status`, { status })
     return response.data

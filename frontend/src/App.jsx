@@ -1,45 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  createIncident,
   getIncidentPage,
   getIncidentStats,
 } from './services/incidentApi'
 import './App.css'
-import { Link, Routes, Route } from 'react-router-dom'
+import { Link, Routes, Route, useNavigate } from 'react-router-dom'
 import IncidentDetails from './pages/IncidentDetails'
 import IncidentsList from './pages/IncidentsList'
+import Team from './pages/Team'
 import Sidebar from './components/Sidebar'
+import CreateIncidentModal from './components/CreateIncidentModal'
+import {
+  CreateIncidentContext,
+  useCreateIncident,
+} from './context/createIncidentContext'
 
 const RECENT_INCIDENT_LIMIT = 5
 
 function Dashboard() {
+  const openCreateIncident = useCreateIncident()
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [stats, setStats] = useState(null)
   const [statsError, setStatsError] = useState(false)
-  const [showCreateForm, setShowCreateForm] = useState(false)
-
-  const [newIncident, setNewIncident] = useState({
-    title: '',
-    description: '',
-    priority: 'MEDIUM',
-    category: '',
-    createdById: '918bface-4f32-4450-9507-588685f3392b',
-  })
-
-  const [submitting, setSubmitting] = useState(false)
-  const [formError, setFormError] = useState('')
-
-  async function loadStats() {
-    try {
-      setStats(await getIncidentStats())
-      setStatsError(false)
-    } catch (requestError) {
-      console.error(requestError)
-      setStatsError(true)
-    }
-  }
 
   function statValue(value, suffix = '') {
     if (statsError) return '—'
@@ -60,7 +44,7 @@ function Dashboard() {
       }
     }
 
-    async function loadInitialStats() {
+    async function loadStats() {
       try {
         setStats(await getIncidentStats())
       } catch (requestError) {
@@ -70,37 +54,8 @@ function Dashboard() {
     }
 
     loadIncidents()
-    loadInitialStats()
+    loadStats()
   }, [])
-  async function handleCreateIncident(event) {
-    event.preventDefault()
-    setSubmitting(true)
-    setFormError('')
-
-    try {
-      const createdIncident = await createIncident(newIncident)
-
-      setIncidents((currentIncidents) =>
-        [createdIncident, ...currentIncidents].slice(0, RECENT_INCIDENT_LIMIT)
-      )
-      loadStats()
-
-      setShowCreateForm(false)
-
-      setNewIncident({
-        title: '',
-        description: '',
-        priority: 'MEDIUM',
-        category: '',
-        createdById: '918bface-4f32-4450-9507-588685f3392b',
-      })
-    } catch (requestError) {
-      console.error(requestError)
-      setFormError('Unable to create the incident.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
 
   return (
     <div className="app-shell">
@@ -116,12 +71,10 @@ function Dashboard() {
             </p>
           </div>
 
-          <button
-            className="primary-button"
-            onClick={() => setShowCreateForm(true)}
-          >
+          <button className="primary-button" onClick={openCreateIncident}>
             + New incident
-          </button>        </header>
+          </button>
+        </header>
 
         <section className="stats-grid">
           <article className="stat-card">
@@ -222,125 +175,46 @@ function Dashboard() {
           </div>
         </section>
       </main>
-      {showCreateForm && (
-        <div className="modal-backdrop">
-          <section className="modal-card">
-            <div className="modal-header">
-              <div>
-                <p className="eyebrow">NEW REQUEST</p>
-                <h2>Create incident</h2>
-              </div>
-
-              <button
-                type="button"
-                className="close-button"
-                onClick={() => setShowCreateForm(false)}
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateIncident}>
-              <label>
-                Title
-                <input
-                  type="text"
-                  value={newIncident.title}
-                  onChange={(event) =>
-                    setNewIncident({
-                      ...newIncident,
-                      title: event.target.value,
-                    })
-                  }
-                  required
-                />
-              </label>
-
-              <label>
-                Description
-                <textarea
-                  rows="5"
-                  value={newIncident.description}
-                  onChange={(event) =>
-                    setNewIncident({
-                      ...newIncident,
-                      description: event.target.value,
-                    })
-                  }
-                  required
-                />
-              </label>
-
-              <div className="form-grid">
-                <label>
-                  Priority
-                  <select
-                    value={newIncident.priority}
-                    onChange={(event) =>
-                      setNewIncident({
-                        ...newIncident,
-                        priority: event.target.value,
-                      })
-                    }
-                  >
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High</option>
-                    <option value="CRITICAL">Critical</option>
-                  </select>
-                </label>
-
-                <label>
-                  Category
-                  <input
-                    type="text"
-                    placeholder="Authentication"
-                    value={newIncident.category}
-                    onChange={(event) =>
-                      setNewIncident({
-                        ...newIncident,
-                        category: event.target.value,
-                      })
-                    }
-                    required
-                  />
-                </label>
-              </div>
-
-              {formError && <p className="form-error">{formError}</p>}
-
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => setShowCreateForm(false)}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={submitting}
-                >
-                  {submitting ? 'Creating...' : 'Create incident'}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
     </div>
   )
 }
 
 function App() {
+  const navigate = useNavigate()
+  const [showCreateIncident, setShowCreateIncident] = useState(false)
+
+  const openCreateIncident = useCallback(() => setShowCreateIncident(true), [])
+  const closeCreateIncident = useCallback(
+    () => setShowCreateIncident(false),
+    []
+  )
+
+  const contextValue = useMemo(
+    () => ({ openCreateIncident }),
+    [openCreateIncident]
+  )
+
+  function handleCreated(incident) {
+    setShowCreateIncident(false)
+    navigate(`/incidents/${incident.id}`)
+  }
+
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/incidents" element={<IncidentsList />} />
-      <Route path="/incidents/:id" element={<IncidentDetails />} />
-    </Routes>
+    <CreateIncidentContext.Provider value={contextValue}>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/incidents" element={<IncidentsList />} />
+        <Route path="/incidents/:id" element={<IncidentDetails />} />
+        <Route path="/team" element={<Team />} />
+      </Routes>
+
+      {showCreateIncident && (
+        <CreateIncidentModal
+          onClose={closeCreateIncident}
+          onCreated={handleCreated}
+        />
+      )}
+    </CreateIncidentContext.Provider>
   )
 }
 

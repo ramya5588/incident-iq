@@ -2,6 +2,7 @@ package com.incidentiq.incident;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -45,6 +46,11 @@ public class IncidentController {
             @RequestParam(required = false) Instant resolvedSince) {
 
         return service.getStats(resolvedSince);
+    }
+
+    @GetMapping("/workload")
+    public List<AssigneeWorkloadResponse> getWorkload() {
+        return service.getWorkload();
     }
 
     @GetMapping("/{incidentId}")

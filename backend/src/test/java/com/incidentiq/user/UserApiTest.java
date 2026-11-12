@@ -54,10 +54,11 @@ class UserApiTest {
         mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "Pat@IncidentIQ.test", "displayName": "Pat"}
+                                {"email": "  Pat@IncidentIQ.test ", "displayName": " Pat "}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value("pat@incidentiq.test"))
+                .andExpect(jsonPath("$.displayName").value("Pat"))
                 .andExpect(jsonPath("$.role").value("USER"));
 
         mockMvc.perform(post("/api/users")
@@ -65,7 +66,17 @@ class UserApiTest {
                         .content("""
                                 {"email": "pat@incidentiq.test", "displayName": "Pat Again"}
                                 """))
-                .andExpect(status().is4xxClientError());
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void rejectsBlankDisplayName() throws Exception {
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "blank@incidentiq.test", "displayName": "   "}
+                                """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

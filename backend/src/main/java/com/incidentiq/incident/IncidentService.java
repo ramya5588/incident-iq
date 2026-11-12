@@ -3,6 +3,7 @@ package com.incidentiq.incident;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 import com.incidentiq.ai.IncidentTriageClient;
@@ -112,6 +113,19 @@ public class IncidentService {
 
         return IncidentResponse.from(
                 incidentRepository.saveAndFlush(incident));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AssigneeWorkloadResponse> getWorkload() {
+        return incidentRepository
+                .countActiveByAssignee(List.of(
+                        IncidentStatus.OPEN,
+                        IncidentStatus.IN_PROGRESS))
+                .stream()
+                .map(row -> new AssigneeWorkloadResponse(
+                        row.getUserId(),
+                        row.getActiveCount()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
