@@ -1,5 +1,7 @@
 # IncidentIQ
 
+[![CI](https://github.com/ramya5588/incident-iq/actions/workflows/ci.yml/badge.svg)](https://github.com/ramya5588/incident-iq/actions/workflows/ci.yml)
+
 An incident management tracker with AI-assisted triage. Report incidents, work
 them through to resolution as a team, and keep a full activity history of who
 changed what.
@@ -35,7 +37,8 @@ changed what.
 | Backend | Java 21, Spring Boot 4, Spring Security, Spring Data JPA, Flyway |
 | Database | PostgreSQL 17, run with Docker Compose |
 | Frontend | React 19, Vite, React Router, axios |
-| Tests | JUnit 5, MockMvc, Testcontainers (a real throwaway PostgreSQL) |
+| Tests | JUnit 5, MockMvc, Testcontainers (a real throwaway PostgreSQL); Vitest and React Testing Library |
+| CI | GitHub Actions |
 
 ## Prerequisites
 
@@ -168,12 +171,24 @@ cd backend
 ./mvnw test
 ```
 
-Lint the frontend:
+Frontend tests run in a simulated browser and don't need the backend:
 
 ```bash
 cd frontend
+npm test            # run once
+npm run test:watch  # re-run on save
 npm run lint
 ```
+
+### CI
+
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs
+on every push to `main` and every pull request:
+
+- **Backend:** `./mvnw test` on Java 21.
+- **Frontend:** `npm ci`, lint, tests and the production build.
+
+Test reports are uploaded when the backend job fails.
 
 ## Project layout
 
@@ -229,4 +244,4 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 - Business hours and pausing SLAs (deadlines currently run around the clock)
 - Notifications
 - Editing a member's name or email, removing members, and password-reset emails
-- Frontend tests, CI and a production deployment setup
+- A production deployment setup
