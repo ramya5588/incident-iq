@@ -1,0 +1,58 @@
+# Production-style stack: PostgreSQL + backend + nginx-served frontend.
+#
+#   cp .env.example .env     # then fill in the values
+#   docker compose -f compose.prod.yaml up -d --build
+#
+# Only the frontend is published (HTTP_PORT, default 8090). nginx forwards
+# /api to the backend; the database and backend are reachable only inside
+# this stack. Put an HTTPS proxy in front for real use (see README).
+
+name: incidentiq-prod
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: incidentiq
+      POSTGRES_USER: incidentiq
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incidentiq -d incidentiq"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/incidentiq
+      DB_USERNAME: incidentiq
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-Administrator}
+      AI_PROVIDER: ${AI_PROVIDER:-local}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-6-astra}
+    # Health check is defined in backend/Dockerfile (GET /actuator/health).
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-8090}:8080"
+
+volumes:
+  db-data:

@@ -1,0 +1,4 @@
+# Secrets for compose.prod.yaml (see .env.example).
+.env
+.env.*
+!.env.example

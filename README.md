@@ -161,6 +161,51 @@ The backend reads these environment variables:
 Docker Compose reads `POSTGRES_PASSWORD` (default `incidentiq_dev`) and
 `POSTGRES_PORT` (default `5433`).
 
+## Running in production
+
+[`compose.prod.yaml`](compose.prod.yaml) runs the whole app the way it would
+run on a server: PostgreSQL, the backend, and the frontend served by nginx.
+nginx also forwards `/api` to the backend, so the browser talks to a single
+address. Only the frontend port is published; the database and backend aren't
+reachable from outside.
+
+```bash
+cp .env.example .env    # then edit .env: DB_PASSWORD and the first admin
+docker compose -f compose.prod.yaml up -d --build
+```
+
+Open http://localhost:8090 (or your `HTTP_PORT`) and sign in with
+`INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD`.
+
+- **Secrets** live in `.env`, which git ignores. Start from
+  [`.env.example`](.env.example). If `DB_PASSWORD` is missing, startup stops
+  with a clear message.
+- **First admin:** on an empty database, the backend creates an admin from
+  `INITIAL_ADMIN_*`. The password must be 12 to 72 characters. This only
+  happens when there are no accounts at all, so the values can't be used to
+  take over an existing install. After signing in, change the password on the
+  **Account** page and remove `INITIAL_ADMIN_PASSWORD` from `.env`.
+- **The `prod` profile** ([`application-prod.properties`](backend/src/main/resources/application-prod.properties))
+  is used automatically. It marks the session cookie `Secure` and `SameSite=Lax`,
+  shows only `UP`/`DOWN` on the health check, hides error details, and trusts
+  `X-Forwarded-*` headers from nginx. The dev profile and its passwords are
+  never active.
+- **HTTPS:** put the stack behind something that handles HTTPS, such as Caddy,
+  Traefik, a cloud load balancer or nginx with certificates, and forward it to
+  `HTTP_PORT`. Keep `COOKIE_SECURE=true`. Browsers treat `localhost` as secure,
+  so a local trial works without HTTPS. Set `COOKIE_SECURE=false` only to try
+  it over plain http on another address.
+- **The images** run as non-root users, include health checks, and start in
+  order: the database, then the backend, then the frontend. nginx adds security
+  headers (CSP, `X-Frame-Options`, `nosniff`), caches the hashed assets, and
+  serves `index.html` for any app route so page reloads work.
+- **Data** is in the `db-data` Docker volume. Back it up with your usual
+  PostgreSQL tools (`pg_dump`). There's no built-in backup.
+- **Updating:** `git pull`, then rerun the same `up -d --build`. Migrations run
+  on startup.
+- **Stopping:** `docker compose -f compose.prod.yaml down`. Add `-v` only if
+  you want to delete the data.
+
 ## Running the tests
 
 Docker needs to be running: the backend tests start their own throwaway
@@ -187,6 +232,8 @@ on every push to `main` and every pull request:
 
 - **Backend:** `./mvnw test` on Java 21.
 - **Frontend:** `npm ci`, lint, tests and the production build.
+- **Docker images:** builds both images and checks the nginx config and
+  `compose.prod.yaml`. Nothing is pushed.
 
 Test reports are uploaded when the backend job fails.
 
@@ -194,20 +241,26 @@ Test reports are uploaded when the backend job fails.
 
 ```
 compose.yaml              PostgreSQL for local development
+compose.prod.yaml         production-style stack (db + backend + nginx frontend)
+.env.example              template for the production secrets
+.github/workflows/ci.yml  CI: backend tests, frontend checks, Docker images
 backend/                  Spring Boot API
+  Dockerfile              production image (JRE, non-root)
   src/main/java/com/incidentiq/
-    auth/                 sign-in, sessions, security rules, dev accounts
-    incident/             incidents, timeline events, comments, stats
-    user/                 team members
+    auth/                 sign-in, sessions, security rules, first/dev accounts
+    incident/             incidents, timeline events, comments, stats, SLAs
+    user/                 team members, roles
     ai/                   triage providers (local and OpenAI)
   src/main/resources/
     db/migration/         Flyway migrations (V1, V2, …)
-    application*.properties
+    application*.properties   base, dev and prod settings
 frontend/                 React single-page app
+  Dockerfile, nginx.conf  production image (nginx, non-root)
   src/App.jsx             routes, sign-in state and the dashboard
-  src/pages/              incident list, incident details, Team, sign-in
-  src/components/         Sidebar, create modal, edit form, timeline
+  src/pages/              incidents, incident details, Team, Account, sign-in
+  src/components/         Sidebar, create modal, edit form, timeline, SLA badge
   src/services/           API client (axios)
+  src/test/               test setup and helpers (tests sit next to the code)
 ```
 
 ## API overview
@@ -244,4 +297,4 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 - Business hours and pausing SLAs (deadlines currently run around the clock)
 - Notifications
 - Editing a member's name or email, removing members, and password-reset emails
-- A production deployment setup
+- Hosting on a specific cloud provider, HTTPS certificates and automated backups

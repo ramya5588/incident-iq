@@ -7,6 +7,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,8 @@ import com.incidentiq.user.UserRole;
  * "dev" profile); never set it in production. Accounts that already have a
  * password are never touched.
  */
+// Before InitialAdminInitializer, so a dev database is never "empty" to it.
+@Order(0)
 @Component
 @ConditionalOnExpression("'${incidentiq.auth.dev-default-password:}' != ''")
 public class DevAccountInitializer implements ApplicationRunner {

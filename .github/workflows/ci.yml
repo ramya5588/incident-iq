@@ -70,3 +70,25 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  images:
+    name: Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      # Catches a broken Dockerfile or nginx config; nothing is pushed.
+      - name: Build backend image
+        run: docker build --tag incidentiq-backend:ci backend
+
+      - name: Build frontend image
+        run: docker build --tag incidentiq-frontend:ci frontend
+
+      - name: Check nginx config
+        run: >
+          docker run --rm --add-host backend:127.0.0.1
+          incidentiq-frontend:ci nginx -t
+
+      - name: Check compose file
+        run: DB_PASSWORD=ci docker compose -f compose.prod.yaml config --quiet
