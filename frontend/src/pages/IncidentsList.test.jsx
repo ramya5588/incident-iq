@@ -8,6 +8,8 @@ import { renderPage } from '../test/render'
 vi.mock('../services/incidentApi', async (importOriginal) => ({
   ...(await importOriginal()),
   getIncidentPage: vi.fn(),
+  // The sidebar bell checks for notifications.
+  getUnreadNotificationCount: vi.fn().mockResolvedValue(0),
 }))
 
 const EMPTY_PAGE = { content: [], totalElements: 0, totalPages: 0 }

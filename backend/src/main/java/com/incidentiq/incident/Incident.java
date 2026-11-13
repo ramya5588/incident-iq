@@ -92,6 +92,14 @@ public class Incident {
     @Column(name = "first_responded_at")
     private Instant firstRespondedAt;
 
+    /** When a missed response deadline was announced (so it's announced once). */
+    @Column(name = "response_breach_notified_at")
+    private Instant responseBreachNotifiedAt;
+
+    /** When a missed resolution deadline was announced. */
+    @Column(name = "resolution_breach_notified_at")
+    private Instant resolutionBreachNotifiedAt;
+
     protected Incident() {
         // Required by JPA
     }
@@ -123,6 +131,23 @@ public class Incident {
     private void applyTarget(SlaProperties.Target target) {
         this.respondBy = createdAt.plus(target.respond());
         this.resolveBy = createdAt.plus(target.resolve());
+
+        // A deadline moved past the time its breach was announced can be
+        // breached (and announced) again.
+        if (responseBreachNotifiedAt != null && respondBy.isAfter(responseBreachNotifiedAt)) {
+            responseBreachNotifiedAt = null;
+        }
+        if (resolutionBreachNotifiedAt != null && resolveBy.isAfter(resolutionBreachNotifiedAt)) {
+            resolutionBreachNotifiedAt = null;
+        }
+    }
+
+    public void markResponseBreachNotified(Instant now) {
+        this.responseBreachNotifiedAt = now;
+    }
+
+    public void markResolutionBreachNotified(Instant now) {
+        this.resolutionBreachNotifiedAt = now;
     }
 
     @PrePersist
@@ -269,6 +294,14 @@ public class Incident {
 
     public Instant getFirstRespondedAt() {
         return firstRespondedAt;
+    }
+
+    public Instant getResponseBreachNotifiedAt() {
+        return responseBreachNotifiedAt;
+    }
+
+    public Instant getResolutionBreachNotifiedAt() {
+        return resolutionBreachNotifiedAt;
     }
 
     public Instant getResolvedAt() {

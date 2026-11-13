@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import com.incidentiq.ai.IncidentTriageClient;
 import com.incidentiq.ai.TriageResult;
+import com.incidentiq.notification.NotificationService;
 import com.incidentiq.user.UserAccount;
 import com.incidentiq.user.UserAccountRepository;
 import com.incidentiq.user.UserRole;
@@ -32,6 +33,7 @@ public class IncidentService {
     private final IncidentEventRepository eventRepository;
     private final SlaProperties slaProperties;
     private final Clock clock;
+    private final NotificationService notifications;
 
     public IncidentService(
             IncidentRepository incidentRepository,
@@ -40,7 +42,8 @@ public class IncidentService {
             IncidentTriageClient triageClient,
             IncidentEventRepository eventRepository,
             SlaProperties slaProperties,
-            Clock clock) {
+            Clock clock,
+            NotificationService notifications) {
 
         this.incidentRepository = incidentRepository;
         this.userRepository = userRepository;
@@ -49,6 +52,7 @@ public class IncidentService {
         this.eventRepository = eventRepository;
         this.slaProperties = slaProperties;
         this.clock = clock;
+        this.notifications = notifications;
     }
 
     /** Current time at the database's precision (microseconds). */
@@ -139,6 +143,7 @@ public class IncidentService {
             incident.updateStatus(request.status(), now());
             eventRepository.save(IncidentEvent.statusChanged(
                     incident, previous, request.status(), actor));
+            notifications.notifyStatusChanged(incident, request.status(), actor);
         }
 
         return toResponse(incidentRepository.saveAndFlush(incident));
@@ -221,6 +226,9 @@ public class IncidentService {
         if (!Objects.equals(previousId, request.assigneeId())) {
             eventRepository.save(IncidentEvent.assigneeChanged(
                     incident, previous, assignee, actor));
+            if (assignee != null) {
+                notifications.notifyAssigned(incident, assignee, actor);
+            }
         }
 
         return toResponse(incidentRepository.saveAndFlush(incident));
@@ -249,6 +257,7 @@ public class IncidentService {
 
         IncidentEvent comment = eventRepository.saveAndFlush(
                 IncidentEvent.comment(incident, author, request.body()));
+        notifications.notifyCommented(incident, author);
 
         return IncidentEventResponse.from(comment);
     }

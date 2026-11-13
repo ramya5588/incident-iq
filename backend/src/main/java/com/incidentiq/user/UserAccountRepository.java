@@ -13,4 +13,6 @@ public interface UserAccountRepository
     boolean existsByEmailIgnoreCase(String email);
 
     long countByRole(UserRole role);
+
+    java.util.List<UserAccount> findByRole(UserRole role);
 }

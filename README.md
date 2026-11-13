@@ -19,6 +19,12 @@ changed what.
   from its priority. Each one shows as on track, at risk, breached or met on
   the list and the incident page, and there's an "Overdue only" filter (see
   [SLA targets](#sla-targets)).
+- **Notifications:** a bell in the sidebar with an unread count. You're
+  notified when an incident is assigned to you, when someone comments on an
+  incident you reported or are assigned, when the status of an incident you
+  reported changes, and when an SLA deadline is missed. Missed deadlines go to
+  the assignee, or to every admin if nobody is assigned. You're never notified
+  about your own actions.
 - **Activity timeline** on every incident: creation, status and assignee
   changes, edits, triage runs and comments, each with who did it and when.
 - **Team page** with each member's role and number of active incidents. Admins
@@ -138,6 +144,10 @@ is signed out. There must always be at least one admin.
   the clock. Changing the priority recalculates both deadlines.
 - **At risk** means a quarter or less of the time is left. **Breached** means
   the deadline passed before it was done.
+- Missed deadlines are checked every minute
+  (`incidentiq.sla.breach-check-interval`), and each one is announced once as
+  a notification. Deadlines already missed when notifications were added
+  count as announced.
 - Change the targets with the `incidentiq.sla.targets.<PRIORITY>.respond` and
   `.resolve` settings in
   [`application.properties`](backend/src/main/resources/application.properties).
@@ -287,6 +297,10 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /incidents/{id}/comments` | signed in | Add a comment |
 | `GET /incidents/stats` | signed in | Dashboard counts, including `slaBreached` (`resolvedSince` optional) |
 | `GET /incidents/workload` | signed in | Active incidents per assignee |
+| `GET /notifications` | signed in | Your 30 most recent notifications, newest first |
+| `GET /notifications/unread-count` | signed in | `{ unread }` |
+| `POST /notifications/{id}/read` | signed in | Mark one of your notifications read |
+| `POST /notifications/read-all` | signed in | Mark all of yours read |
 | `GET /users` | signed in | List team members |
 | `POST /users` | admin | Add a team member |
 | `PATCH /users/{id}/role` | admin | Change a member's role (`{ role }`); the last admin can't be demoted |
@@ -295,6 +309,6 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 ## Not built yet
 
 - Business hours and pausing SLAs (deadlines currently run around the clock)
-- Notifications
+- Email or Slack notifications, and choosing which notifications you get
 - Editing a member's name or email, removing members, and password-reset emails
 - Hosting on a specific cloud provider, HTTPS certificates and automated backups

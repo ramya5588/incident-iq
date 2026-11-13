@@ -8,6 +8,8 @@ import { USERS, renderPage } from '../test/render'
 vi.mock('../services/incidentApi', async (importOriginal) => ({
   ...(await importOriginal()),
   changeOwnPassword: vi.fn(),
+  // The sidebar bell checks for notifications.
+  getUnreadNotificationCount: vi.fn().mockResolvedValue(0),
 }))
 
 async function fill(current, next, confirm) {

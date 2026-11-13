@@ -49,6 +49,25 @@ export async function signOut() {
     await api.post('/auth/logout')
 }
 
+/** Your most recent notifications, newest first. */
+export async function getNotifications() {
+    const response = await api.get('/notifications')
+    return response.data
+}
+
+export async function getUnreadNotificationCount() {
+    const response = await api.get('/notifications/unread-count')
+    return response.data.unread
+}
+
+export async function markNotificationRead(id) {
+    await api.post(`/notifications/${id}/read`)
+}
+
+export async function markAllNotificationsRead() {
+    await api.post('/notifications/read-all')
+}
+
 /** Change your own password. Other sessions of your account are signed out. */
 export async function changeOwnPassword(currentPassword, newPassword) {
     await api.put('/auth/password', { currentPassword, newPassword })

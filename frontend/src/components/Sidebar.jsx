@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useCreateIncident } from '../context/createIncidentContext'
 import { useCurrentUser } from '../context/currentUserContext'
 import { initials } from '../utils/initials'
+import NotificationBell from './NotificationBell'
 
 const ROLE_LABELS = {
   ADMIN: 'Administrator',
@@ -19,13 +20,17 @@ function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <span className="brand-mark">IQ</span>
+      <div className="sidebar-top">
+        <div className="brand">
+          <span className="brand-mark">IQ</span>
 
-        <div>
-          <strong>IncidentIQ</strong>
-          <small>Intelligent Operations</small>
+          <div>
+            <strong>IncidentIQ</strong>
+            <small>Intelligent Operations</small>
+          </div>
         </div>
+
+        <NotificationBell />
       </div>
 
       <nav>
