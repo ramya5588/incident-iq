@@ -1,5 +1,6 @@
 package com.incidentiq.user;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -12,7 +13,7 @@ public interface UserAccountRepository
 
     boolean existsByEmailIgnoreCase(String email);
 
-    long countByRole(UserRole role);
+    long countByRoleAndActiveTrue(UserRole role);
 
-    java.util.List<UserAccount> findByRole(UserRole role);
+    List<UserAccount> findByRoleAndActiveTrue(UserRole role);
 }

@@ -214,7 +214,7 @@ class UserApiTest {
         changeRole(admin.getId(), "AGENT")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value(
-                        "There must always be at least one admin. Make someone else an admin first."));
+                        "There must always be at least one active admin. Make someone else an admin first."));
         assertThat(userRepository.findById(admin.getId()).orElseThrow().getRole())
                 .isEqualTo(UserRole.ADMIN);
 

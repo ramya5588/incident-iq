@@ -58,7 +58,8 @@ public class NotificationService {
 
         Map<UUID, UserAccount> unique = new LinkedHashMap<>();
         for (UserAccount recipient : recipients) {
-            if (recipient != null) {
+            // Deactivated members don't get notifications.
+            if (recipient != null && recipient.isActive()) {
                 unique.putIfAbsent(recipient.getId(), recipient);
             }
         }

@@ -24,8 +24,9 @@ import jakarta.servlet.http.HttpSession;
  * session never acts on stale data:
  * <ul>
  * <li>a changed role applies on the very next request;</li>
- * <li>a deleted account, or one whose password changed since this session
- * signed in (a reset, or a change made in another session), is signed out.</li>
+ * <li>a deleted or deactivated account, or one whose password changed since
+ * this session signed in (a reset, or a change made in another session), is
+ * signed out.</li>
  * </ul>
  * The session that changes its own password is updated with the new hash
  * by the change-password endpoint, so it stays signed in.
@@ -52,6 +53,7 @@ final class CurrentUserRefreshFilter extends OncePerRequestFilter {
             Optional<UserAccount> user = repository.findById(principal.id());
 
             if (user.isEmpty()
+                    || !user.get().isActive()
                     || !Objects.equals(user.get().getPasswordHash(), principal.passwordHash())) {
                 signOut(request);
             } else if (user.get().getRole() != principal.role()

@@ -8,6 +8,8 @@ public record UserResponse(
         String email,
         String displayName,
         UserRole role,
+        boolean active,
+        Instant deactivatedAt,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -17,6 +19,8 @@ public record UserResponse(
                 user.getEmail(),
                 user.getDisplayName(),
                 user.getRole(),
+                user.isActive(),
+                user.getDeactivatedAt(),
                 user.getCreatedAt(),
                 user.getUpdatedAt());
     }

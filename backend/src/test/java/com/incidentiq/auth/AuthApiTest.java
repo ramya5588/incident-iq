@@ -298,4 +298,30 @@ class AuthApiTest {
         mockMvc.perform(get("/api/auth/me").session(session))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void deactivationEndsSessionsAndBlocksSignIn() throws Exception {
+        MockHttpSession alexSession = sessionFor("alex@incidentiq.test", PASSWORD);
+        MockHttpSession admin = adminSession();
+
+        mockMvc.perform(post("/api/users/{id}/deactivate", alex.getId())
+                        .session(admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"unassignOpenIncidents\": false}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/incidents").session(alexSession))
+                .andExpect(status().isUnauthorized());
+
+        // Same answer as a wrong password: don't reveal the account exists.
+        MvcResult attempt = login("alex@incidentiq.test", PASSWORD);
+        assertThat(attempt.getResponse().getStatus()).isEqualTo(401);
+        assertThat(attempt.getResponse().getContentAsString())
+                .contains("Incorrect email or password.");
+
+        mockMvc.perform(post("/api/users/{id}/reactivate", alex.getId()).session(admin))
+                .andExpect(status().isOk());
+        assertThat(login("alex@incidentiq.test", PASSWORD).getResponse().getStatus())
+                .isEqualTo(200);
+    }
 }

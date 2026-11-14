@@ -168,10 +168,12 @@ function IncidentDetails() {
         return <main className="details-page">Incident not found.</main>
     }
 
-    // Agents and admins, plus whoever is assigned now (so the menu still
-    // shows them if their role has changed since).
+    // Active agents and admins, plus whoever is assigned now (so the menu
+    // still shows them if their role changed or they were deactivated).
     const assignableUsers = users.filter(
-        (user) => canBeAssigned(user) || user.id === incident.assignedToId
+        (user) =>
+            (canBeAssigned(user) && user.active !== false) ||
+            user.id === incident.assignedToId
     )
 
     return (
@@ -294,6 +296,7 @@ function IncidentDetails() {
                                     {user.role !== 'USER'
                                         ? ` (${user.role.toLowerCase()})`
                                         : ''}
+                                    {user.active === false ? ' – deactivated' : ''}
                                 </option>
                             ))}
                         </select>

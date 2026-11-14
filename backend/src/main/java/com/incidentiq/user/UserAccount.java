@@ -36,6 +36,13 @@ public class UserAccount {
     @Column(name = "password_hash", length = 100)
     private String passwordHash;
 
+    /** False once deactivated: no sign-in, no assignments, no notifications. */
+    @Column(nullable = false)
+    private boolean active = true;
+
+    @Column(name = "deactivated_at")
+    private Instant deactivatedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -99,6 +106,26 @@ public class UserAccount {
     /** Takes an already-encoded hash, never a raw password. */
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public Instant getDeactivatedAt() {
+        return deactivatedAt;
+    }
+
+    public void deactivate(Instant now) {
+        if (active) {
+            active = false;
+            deactivatedAt = now;
+        }
+    }
+
+    public void reactivate() {
+        active = true;
+        deactivatedAt = null;
     }
 
     public Instant getCreatedAt() {

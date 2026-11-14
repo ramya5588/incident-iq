@@ -27,8 +27,8 @@ public class UserExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
-    @ExceptionHandler(LastAdminException.class)
-    public ResponseEntity<ApiError> handleLastAdmin(LastAdminException exception) {
+    @ExceptionHandler(TeamRuleException.class)
+    public ResponseEntity<ApiError> handleTeamRule(TeamRuleException exception) {
         ApiError error = new ApiError(
                 Instant.now(),
                 HttpStatus.CONFLICT.value(),

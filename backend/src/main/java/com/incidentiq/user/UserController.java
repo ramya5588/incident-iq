@@ -47,6 +47,36 @@ public class UserController {
     }
 
     /** Admin only (SecurityConfig). */
+    @PatchMapping("/{userId}")
+    public UserResponse updateUser(
+            @PathVariable UUID userId,
+            @Valid @RequestBody UpdateUserRequest request,
+            @AuthenticationPrincipal AppUserPrincipal admin) {
+
+        return service.updateUser(userId, request, admin.id());
+    }
+
+    /** Admin only (SecurityConfig). */
+    @PostMapping("/{userId}/deactivate")
+    public DeactivationResponse deactivate(
+            @PathVariable UUID userId,
+            @RequestBody(required = false) DeactivateUserRequest request,
+            @AuthenticationPrincipal AppUserPrincipal admin) {
+
+        boolean unassign = request != null && request.unassignOpenIncidents();
+        return service.deactivate(userId, unassign, admin.id());
+    }
+
+    /** Admin only (SecurityConfig). */
+    @PostMapping("/{userId}/reactivate")
+    public UserResponse reactivate(
+            @PathVariable UUID userId,
+            @AuthenticationPrincipal AppUserPrincipal admin) {
+
+        return service.reactivate(userId, admin.id());
+    }
+
+    /** Admin only (SecurityConfig). */
     @PatchMapping("/{userId}/role")
     public UserResponse changeRole(
             @PathVariable UUID userId,

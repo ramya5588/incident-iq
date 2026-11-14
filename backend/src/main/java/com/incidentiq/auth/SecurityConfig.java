@@ -56,8 +56,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login", "/api/auth/me").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // Only admins manage the team.
-                        .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN")
-                        // ...including changing roles and resetting passwords.
+                        .requestMatchers(HttpMethod.POST, "/api/users", "/api/users/**")
+                                .hasRole("ADMIN")
+                        // ...including editing, (de)activating, changing roles
+                        // and resetting passwords.
                         .requestMatchers(HttpMethod.PATCH, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/users/**").hasRole("ADMIN")
                         // Working an incident (edit, status, assignee, triage)

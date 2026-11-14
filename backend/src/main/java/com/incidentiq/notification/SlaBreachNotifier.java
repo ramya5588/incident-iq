@@ -21,7 +21,8 @@ import com.incidentiq.user.UserRole;
 /**
  * Announces missed SLA deadlines. Deadlines pass on their own (no user
  * action happens), so this checks periodically. Each deadline is announced
- * once, to the assignee, or to every admin if nobody is assigned.
+ * once, to the assignee, or to every active admin if nobody is assigned (or
+ * the assignee has been deactivated).
  */
 @Component
 public class SlaBreachNotifier {
@@ -87,11 +88,11 @@ public class SlaBreachNotifier {
 
         for (Incident incident : incidents) {
             List<UserAccount> recipients;
-            if (incident.getAssignedTo() != null) {
+            if (incident.getAssignedTo() != null && incident.getAssignedTo().isActive()) {
                 recipients = List.of(incident.getAssignedTo());
             } else {
                 if (admins == null) {
-                    admins = userRepository.findByRole(UserRole.ADMIN);
+                    admins = userRepository.findByRoleAndActiveTrue(UserRole.ADMIN);
                 }
                 recipients = admins;
             }

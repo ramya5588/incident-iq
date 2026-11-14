@@ -217,7 +217,10 @@ public class IncidentService {
                 : findUser(request.assigneeId());
 
         if (assignee != null && assignee.getRole() == UserRole.USER) {
-            throw new InvalidAssigneeException(assignee.getDisplayName());
+            throw InvalidAssigneeException.notAgentOrAdmin(assignee.getDisplayName());
+        }
+        if (assignee != null && !assignee.isActive()) {
+            throw InvalidAssigneeException.deactivated(assignee.getDisplayName());
         }
 
         incident.assignTo(assignee, now());
@@ -232,6 +235,27 @@ public class IncidentService {
         }
 
         return toResponse(incidentRepository.saveAndFlush(incident));
+    }
+
+    /**
+     * Unassigns every open or in-progress incident of {@code userId} (e.g.
+     * when they're deactivated), recording each change on the timeline.
+     *
+     * @return how many incidents were unassigned
+     */
+    @Transactional
+    public int unassignOpenIncidents(UUID userId, UUID actorId) {
+        UserAccount actor = findActor(actorId);
+        List<Incident> incidents = incidentRepository.findByAssignedToIdAndStatusIn(
+                userId, List.of(IncidentStatus.OPEN, IncidentStatus.IN_PROGRESS));
+
+        for (Incident incident : incidents) {
+            UserAccount previous = incident.getAssignedTo();
+            incident.assignTo(null, now());
+            eventRepository.save(IncidentEvent.assigneeChanged(incident, previous, null, actor));
+        }
+        incidentRepository.flush();
+        return incidents.size();
     }
 
     @Transactional(readOnly = true)

@@ -16,6 +16,9 @@ public interface IncidentRepository
 
     long countByStatus(IncidentStatus status);
 
+    List<Incident> findByAssignedToIdAndStatusIn(
+            UUID assigneeId, Collection<IncidentStatus> statuses);
+
     long countByResolvedAtGreaterThanEqual(Instant since);
 
     long countByAiTriagedAtIsNotNull();

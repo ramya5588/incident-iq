@@ -73,6 +73,26 @@ export async function changeOwnPassword(currentPassword, newPassword) {
     await api.put('/auth/password', { currentPassword, newPassword })
 }
 
+/** Admin only. Pass only the fields to change ({ displayName, email }). */
+export async function updateUserDetails(userId, changes) {
+    const response = await api.patch(`/users/${userId}`, changes)
+    return response.data
+}
+
+/** Admin only. Returns { user, unassignedIncidents }. */
+export async function deactivateUser(userId, unassignOpenIncidents) {
+    const response = await api.post(`/users/${userId}/deactivate`, {
+        unassignOpenIncidents,
+    })
+    return response.data
+}
+
+/** Admin only. */
+export async function reactivateUser(userId) {
+    const response = await api.post(`/users/${userId}/reactivate`)
+    return response.data
+}
+
 /** Admin only. */
 export async function changeUserRole(userId, role) {
     const response = await api.patch(`/users/${userId}/role`, { role })

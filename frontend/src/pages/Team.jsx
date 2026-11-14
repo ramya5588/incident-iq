@@ -4,10 +4,13 @@ import { Link } from 'react-router-dom'
 import {
   changeUserRole,
   createUser,
+  deactivateUser,
   describeApiError,
   getUsers,
   getWorkload,
+  reactivateUser,
   resetUserPassword,
+  updateUserDetails,
 } from '../services/incidentApi'
 import { useCurrentUser } from '../context/currentUserContext'
 import { initials } from '../utils/initials'
@@ -22,63 +25,130 @@ const ROLE_OPTIONS = [
 const EMPTY_MEMBER = { displayName: '', email: '', role: 'AGENT', password: '' }
 
 /**
- * One member. Admins get a role menu (with Save/Cancel, so a stray click
- * doesn't change anyone's access) and a password reset.
+ * One member. Admins can change the role (Save/Cancel, so a stray click
+ * doesn't change anyone's access), edit name and email, reset the password,
+ * and deactivate or reactivate. Only one of those panels is open at a time.
  */
 function MemberRow({ user, activeCount, admin, isYou, onUpdated }) {
   const [role, setRole] = useState(user.role)
   const [savingRole, setSavingRole] = useState(false)
-  const [resetting, setResetting] = useState(false)
+  const [panel, setPanel] = useState(null) // 'edit' | 'reset' | 'deactivate'
+  const [details, setDetails] = useState({ displayName: '', email: '' })
   const [newPassword, setNewPassword] = useState('')
-  const [savingPassword, setSavingPassword] = useState(false)
+  const [unassign, setUnassign] = useState(true)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
+  const active = user.active !== false
   const roleChanged = role !== user.role
 
-  async function saveRole() {
-    setSavingRole(true)
+  function openPanel(name) {
+    setPanel(name)
+    setError('')
+    setMessage('')
+    if (name === 'edit') {
+      setDetails({ displayName: user.displayName, email: user.email })
+    }
+    if (name === 'deactivate') setUnassign(activeCount > 0)
+  }
+
+  function closePanel() {
+    setPanel(null)
+    setNewPassword('')
+  }
+
+  async function run(action, fallback) {
+    setBusy(true)
     setError('')
     setMessage('')
     try {
-      const updated = await changeUserRole(user.id, role)
-      onUpdated(updated)
-      const label =
-        ROLE_OPTIONS.find((option) => option.value === updated.role)?.label ??
-        updated.role
-      setMessage(`${updated.displayName} is now ${label}.`)
+      await action()
     } catch (requestError) {
       console.error(requestError)
-      setError(describeApiError(requestError, 'Unable to change the role.'))
-      setRole(user.role)
+      setError(describeApiError(requestError, fallback))
     } finally {
-      setSavingRole(false)
+      setBusy(false)
     }
   }
 
-  async function savePassword(event) {
+  function saveRole() {
+    setSavingRole(true)
+    run(async () => {
+      try {
+        const updated = await changeUserRole(user.id, role)
+        onUpdated(updated)
+        const label =
+          ROLE_OPTIONS.find((option) => option.value === updated.role)?.label ??
+          updated.role
+        setMessage(`${updated.displayName} is now ${label}.`)
+      } catch (requestError) {
+        setRole(user.role)
+        throw requestError
+      } finally {
+        setSavingRole(false)
+      }
+    }, 'Unable to change the role.')
+  }
+
+  function saveDetails(event) {
     event.preventDefault()
-    setSavingPassword(true)
-    setError('')
-    setMessage('')
-    try {
+    const changes = {}
+    if (details.displayName.trim() !== user.displayName) {
+      changes.displayName = details.displayName
+    }
+    if (details.email.trim().toLowerCase() !== user.email) {
+      changes.email = details.email
+    }
+    if (Object.keys(changes).length === 0) {
+      closePanel()
+      return
+    }
+    run(async () => {
+      const updated = await updateUserDetails(user.id, changes)
+      onUpdated(updated)
+      closePanel()
+      setMessage('Details saved.')
+    }, 'Unable to save the details.')
+  }
+
+  function savePassword(event) {
+    event.preventDefault()
+    run(async () => {
       await resetUserPassword(user.id, newPassword)
-      setResetting(false)
-      setNewPassword('')
+      closePanel()
       setMessage(
         `Password reset. Share it with ${user.displayName} securely. They have been signed out everywhere.`
       )
-    } catch (requestError) {
-      console.error(requestError)
-      setError(describeApiError(requestError, 'Unable to reset the password.'))
-    } finally {
-      setSavingPassword(false)
-    }
+    }, 'Unable to reset the password.')
+  }
+
+  function confirmDeactivate() {
+    run(async () => {
+      const result = await deactivateUser(user.id, unassign)
+      onUpdated(result.user, { unassigned: result.unassignedIncidents })
+      closePanel()
+      const moved = result.unassignedIncidents
+      setMessage(
+        `${user.displayName} was deactivated and signed out.` +
+          (moved > 0
+            ? ` ${moved} incident${moved === 1 ? ' was' : 's were'} returned to the queue.`
+            : '')
+      )
+    }, 'Unable to deactivate this member.')
+  }
+
+  function reactivate() {
+    run(async () => {
+      const updated = await reactivateUser(user.id)
+      onUpdated(updated)
+      setMessage(`${updated.displayName} can sign in again.`)
+    }, 'Unable to reactivate this member.')
   }
 
   return (
     <>
-      <div className="table-row team-row">
+      <div className={`table-row team-row ${active ? '' : 'inactive'}`}>
         <span className="member">
           <span className="avatar member-avatar">
             {initials(user.displayName)}
@@ -86,11 +156,12 @@ function MemberRow({ user, activeCount, admin, isYou, onUpdated }) {
           <strong>
             {user.displayName}
             {isYou && <small className="you-tag">You</small>}
+            {!active && <small className="inactive-tag">Deactivated</small>}
           </strong>
         </span>
         <span className="member-email">{user.email}</span>
 
-        {admin ? (
+        {admin && active ? (
           <span className="role-edit">
             <select
               value={role}
@@ -138,33 +209,113 @@ function MemberRow({ user, activeCount, admin, isYou, onUpdated }) {
         <span className="member-workload">{activeCount}</span>
 
         {admin && (
-          <span>
-            {isYou ? (
-              <Link className="secondary-button small-button" to="/account">
-                Change password
-              </Link>
-            ) : (
-              !resetting && (
+          <span className="member-actions">
+            {active ? (
+              <>
                 <button
                   type="button"
                   className="secondary-button small-button"
-                  onClick={() => {
-                    setResetting(true)
-                    setMessage('')
-                    setError('')
-                  }}
+                  onClick={() => openPanel('edit')}
+                  aria-label={`Edit ${user.displayName}`}
                 >
-                  Reset password
+                  Edit
                 </button>
-              )
+                {isYou ? (
+                  <Link className="secondary-button small-button" to="/account">
+                    Change password
+                  </Link>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="secondary-button small-button"
+                      onClick={() => openPanel('reset')}
+                      aria-label={`Reset password for ${user.displayName}`}
+                    >
+                      Reset password
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-button small-button"
+                      onClick={() => openPanel('deactivate')}
+                      aria-label={`Deactivate ${user.displayName}`}
+                    >
+                      Deactivate
+                    </button>
+                  </>
+                )}
+              </>
+            ) : (
+              <button
+                type="button"
+                className="secondary-button small-button"
+                onClick={reactivate}
+                disabled={busy}
+                aria-label={`Reactivate ${user.displayName}`}
+              >
+                {busy ? 'Reactivating...' : 'Reactivate'}
+              </button>
             )}
           </span>
         )}
       </div>
 
-      {(resetting || error || message) && (
+      {(panel || error || message) && (
         <div className="member-panel">
-          {resetting && (
+          {panel === 'edit' && (
+            <form className="reset-form" onSubmit={saveDetails}>
+              <label>
+                Name
+                <input
+                  type="text"
+                  value={details.displayName}
+                  onChange={(event) =>
+                    setDetails((current) => ({
+                      ...current,
+                      displayName: event.target.value,
+                    }))
+                  }
+                  maxLength={120}
+                  autoFocus
+                  required
+                  disabled={busy}
+                />
+              </label>
+              <label>
+                Email
+                <input
+                  type="email"
+                  value={details.email}
+                  onChange={(event) =>
+                    setDetails((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                  maxLength={255}
+                  required
+                  disabled={busy}
+                />
+              </label>
+              <button
+                type="submit"
+                className="primary-button small-button"
+                disabled={busy}
+              >
+                {busy ? 'Saving...' : 'Save details'}
+              </button>
+              <button
+                type="button"
+                className="secondary-button small-button"
+                onClick={closePanel}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+            </form>
+          )}
+
+          {panel === 'reset' && (
             <form className="reset-form" onSubmit={savePassword}>
               <label>
                 New password for {user.displayName}
@@ -178,29 +329,68 @@ function MemberRow({ user, activeCount, admin, isYou, onUpdated }) {
                   placeholder="At least 8 characters"
                   autoFocus
                   required
-                  disabled={savingPassword}
+                  disabled={busy}
                 />
               </label>
               <button
                 type="submit"
                 className="primary-button small-button"
-                disabled={savingPassword}
+                disabled={busy}
               >
-                {savingPassword ? 'Saving...' : 'Set password'}
+                {busy ? 'Saving...' : 'Set password'}
               </button>
               <button
                 type="button"
                 className="secondary-button small-button"
-                onClick={() => {
-                  setResetting(false)
-                  setNewPassword('')
-                }}
-                disabled={savingPassword}
+                onClick={closePanel}
+                disabled={busy}
               >
                 Cancel
               </button>
             </form>
           )}
+
+          {panel === 'deactivate' && (
+            <div className="deactivate-panel" role="group" aria-label="Confirm deactivation">
+              <p>
+                <strong>Deactivate {user.displayName}?</strong> They'll be
+                signed out straight away and won't be able to sign in, be
+                assigned incidents or get notifications. Their history stays,
+                and you can reactivate them later.
+              </p>
+              {activeCount > 0 && (
+                <label className="checkbox-filter">
+                  <input
+                    type="checkbox"
+                    checked={unassign}
+                    onChange={(event) => setUnassign(event.target.checked)}
+                    disabled={busy}
+                  />
+                  Also unassign their {activeCount} open incident
+                  {activeCount === 1 ? '' : 's'} (return them to the queue)
+                </label>
+              )}
+              <div className="deactivate-actions">
+                <button
+                  type="button"
+                  className="danger-button small-button"
+                  onClick={confirmDeactivate}
+                  disabled={busy}
+                >
+                  {busy ? 'Deactivating...' : 'Deactivate'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button small-button"
+                  onClick={closePanel}
+                  disabled={busy}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           {error && <p className="error-message">{error}</p>}
           {message && <p className="status-message">{message}</p>}
         </div>
@@ -223,6 +413,13 @@ function Team() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
   const [formMessage, setFormMessage] = useState('')
+  const [showDeactivated, setShowDeactivated] = useState(false)
+
+  const deactivatedCount = users.filter((user) => user.active === false).length
+  const activeCount = users.length - deactivatedCount
+  const visibleUsers = showDeactivated
+    ? users
+    : users.filter((user) => user.active !== false)
 
   useEffect(() => {
     async function loadTeam() {
@@ -248,10 +445,15 @@ function Team() {
     loadTeam()
   }, [])
 
-  function handleMemberUpdated(user) {
+  function handleMemberUpdated(user, { unassigned = 0 } = {}) {
     setUsers((current) =>
       current.map((existing) => (existing.id === user.id ? user : existing))
     )
+    if (unassigned > 0) {
+      setWorkload((current) => ({ ...current, [user.id]: 0 }))
+    }
+    // Keep a just-deactivated member (and the confirmation) on screen.
+    if (user.active === false) setShowDeactivated(true)
     updateUser(user)
     if (user.id === currentUser?.id) refreshCurrentUser()
   }
@@ -415,9 +617,21 @@ function Team() {
               <p>
                 {loading
                   ? 'Loading…'
-                  : `${users.length} member${users.length === 1 ? '' : 's'}`}
+                  : `${activeCount} active member${activeCount === 1 ? '' : 's'}` +
+                    (deactivatedCount > 0 ? ` · ${deactivatedCount} deactivated` : '')}
               </p>
             </div>
+
+            {deactivatedCount > 0 && (
+              <label className="checkbox-filter">
+                <input
+                  type="checkbox"
+                  checked={showDeactivated}
+                  onChange={(event) => setShowDeactivated(event.target.checked)}
+                />
+                Show deactivated ({deactivatedCount})
+              </label>
+            )}
           </div>
 
           <div className={`incident-table ${admin ? 'team-admin' : ''}`}>
@@ -437,7 +651,7 @@ function Team() {
 
             {!loading &&
               !error &&
-              users.map((user) => (
+              visibleUsers.map((user) => (
                 <MemberRow
                   key={user.id}
                   user={user}

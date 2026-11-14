@@ -27,8 +27,11 @@ changed what.
   about your own actions.
 - **Activity timeline** on every incident: creation, status and assignee
   changes, edits, triage runs and comments, each with who did it and when.
-- **Team page** with each member's role and number of active incidents. Admins
-  can add members, change roles and reset passwords there.
+- **Team page** with each member's role and number of active incidents.
+  Admins can add members, edit names and emails, change roles, reset
+  passwords, and deactivate or reactivate members there. Deactivating ends
+  someone's access straight away but keeps their history, and can return
+  their open incidents to the queue.
 - **Account page:** change your own password. Your other signed-in devices are
   signed out.
 - **Sign-in and roles:** session-based sign-in. Reporters, agents and admins
@@ -116,7 +119,7 @@ profile.
 |---|---|---|---|
 | View incidents, report new ones, comment | ✓ | ✓ | ✓ |
 | Edit details, change status, assign, run AI triage | | ✓ | ✓ |
-| Add team members, change roles, reset passwords | | | ✓ |
+| Add, edit, deactivate and reactivate members; change roles; reset passwords | | | ✓ |
 | Can be assigned incidents | | ✓ | ✓ |
 
 The backend enforces these rules; the frontend only hides controls a role can't
@@ -125,8 +128,11 @@ from the signed-in session, never from the request body.
 
 The signed-in user is re-read from the database on every request. A role
 change applies on that person's next click, without signing in again. A deleted
-account, or a session that signed in before the password was changed or reset,
-is signed out. There must always be at least one admin.
+or deactivated account, or a session that signed in before the password was
+changed or reset, is signed out. Deactivated members can't sign in (they get the
+same answer as a wrong password), be assigned incidents or receive
+notifications. There must always be at least one active admin, and you can't
+deactivate yourself.
 
 ## SLA targets
 
@@ -303,6 +309,9 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /notifications/read-all` | signed in | Mark all of yours read |
 | `GET /users` | signed in | List team members |
 | `POST /users` | admin | Add a team member |
+| `PATCH /users/{id}` | admin | Edit a member's name and/or email (`{ displayName, email }`); emails stay unique |
+| `POST /users/{id}/deactivate` | admin | End a member's access (`{ unassignOpenIncidents }`); returns `{ user, unassignedIncidents }` |
+| `POST /users/{id}/reactivate` | admin | Restore a deactivated member |
 | `PATCH /users/{id}/role` | admin | Change a member's role (`{ role }`); the last admin can't be demoted |
 | `PUT /users/{id}/password` | admin | Reset a member's password (`{ newPassword }`) |
 
@@ -310,5 +319,6 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 
 - Business hours and pausing SLAs (deadlines currently run around the clock)
 - Email or Slack notifications, and choosing which notifications you get
-- Editing a member's name or email, removing members, and password-reset emails
+- Permanently deleting accounts, members editing their own name or email, and
+  password-reset emails
 - Hosting on a specific cloud provider, HTTPS certificates and automated backups

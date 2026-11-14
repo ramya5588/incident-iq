@@ -8,7 +8,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.incidentiq.user.UserAccountRepository;
 
-/** Loads users by email for sign-in. Accounts without a password are skipped. */
+/**
+ * Loads users by email for sign-in. Accounts without a password, and
+ * deactivated accounts, can't sign in (same answer as a wrong password).
+ */
 @Service
 public class AppUserDetailsService implements UserDetailsService {
 
@@ -22,7 +25,7 @@ public class AppUserDetailsService implements UserDetailsService {
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String email) {
         return repository.findByEmailIgnoreCase(email.trim())
-                .filter(user -> user.getPasswordHash() != null)
+                .filter(user -> user.getPasswordHash() != null && user.isActive())
                 .map(AppUserPrincipal::from)
                 .orElseThrow(() -> new UsernameNotFoundException("No sign-in for " + email));
     }
