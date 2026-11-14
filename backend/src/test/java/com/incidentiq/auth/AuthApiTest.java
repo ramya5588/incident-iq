@@ -326,6 +326,26 @@ class AuthApiTest {
     }
 
     @Test
+    void withoutEmailANewSignInEmailAppliesAtOnceAndKeepsTheSession() throws Exception {
+        MockHttpSession session =
+                (MockHttpSession) login("alex@incidentiq.test", PASSWORD).getRequest().getSession(false);
+
+        mockMvc.perform(post("/api/auth/email-change").session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newEmail\": \"Alex.R@incidentiq.test\", \"currentPassword\": \"" + PASSWORD + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.email").value("alex.r@incidentiq.test"))
+                .andExpect(jsonPath("$.pending").doesNotExist());
+
+        // Still signed in, now under the new email; the old one no longer works.
+        mockMvc.perform(get("/api/auth/me").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("alex.r@incidentiq.test"));
+        assertThat(login("alex@incidentiq.test", PASSWORD).getResponse().getStatus()).isEqualTo(401);
+        assertThat(login("alex.r@incidentiq.test", PASSWORD).getResponse().getStatus()).isEqualTo(200);
+    }
+
+    @Test
     void passwordResetIsUnavailableWithoutEmail() throws Exception {
         mockMvc.perform(get("/api/auth/password-reset"))
                 .andExpect(status().isOk())

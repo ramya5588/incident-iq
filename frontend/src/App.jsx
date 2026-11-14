@@ -16,6 +16,7 @@ import Team from './pages/Team'
 import SignInPage from './pages/SignInPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import ConfirmEmailPage from './pages/ConfirmEmailPage'
 import AccountPage from './pages/AccountPage'
 import Sidebar from './components/Sidebar'
 import CreateIncidentModal from './components/CreateIncidentModal'
@@ -347,6 +348,7 @@ function App() {
       <Routes>
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/confirm-email" element={<ConfirmEmailPage />} />
         <Route path="*" element={<SignInPage onSignedIn={setCurrentUser} />} />
       </Routes>
     )
@@ -366,6 +368,10 @@ function App() {
           <Route
             path="/reset-password"
             element={<ResetPasswordPage onReset={refreshCurrentUser} />}
+          />
+          <Route
+            path="/confirm-email"
+            element={<ConfirmEmailPage onConfirmed={refreshCurrentUser} />}
           />
         </Routes>
 

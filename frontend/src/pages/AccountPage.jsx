@@ -1,8 +1,13 @@
 import { useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import EmailPreferences from '../components/EmailPreferences'
+import ChangeEmail from '../components/ChangeEmail'
 import { useCurrentUser } from '../context/currentUserContext'
-import { changeOwnPassword, describeApiError } from '../services/incidentApi'
+import {
+  changeOwnPassword,
+  describeApiError,
+  updateOwnName,
+} from '../services/incidentApi'
 import { initials } from '../utils/initials'
 
 const ROLE_DESCRIPTIONS = {
@@ -13,8 +18,100 @@ const ROLE_DESCRIPTIONS = {
 
 const EMPTY_FORM = { current: '', next: '', confirm: '' }
 
+/** Your name, with an inline editor. */
+function NameEditor({ currentUser, onSaved }) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    if (name.trim() === currentUser.displayName) {
+      setEditing(false)
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      onSaved(await updateOwnName(name))
+      setEditing(false)
+      setMessage('Name saved.')
+    } catch (requestError) {
+      console.error(requestError)
+      setError(describeApiError(requestError, 'Unable to save your name.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!editing) {
+    return (
+      <>
+        <div className="name-row">
+          <strong>{currentUser.displayName}</strong>
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => {
+              setName(currentUser.displayName)
+              setEditing(true)
+              setError('')
+              setMessage('')
+            }}
+          >
+            Edit name
+          </button>
+        </div>
+        {message && <p className="status-message">{message}</p>}
+      </>
+    )
+  }
+
+  return (
+    <form className="name-form" onSubmit={handleSubmit}>
+      <label>
+        Name
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          maxLength={120}
+          autoFocus
+          required
+          disabled={saving}
+        />
+      </label>
+      <div className="name-form-actions">
+        <button
+          type="submit"
+          className="primary-button small-button"
+          disabled={saving || name.trim() === ''}
+        >
+          {saving ? 'Saving...' : 'Save name'}
+        </button>
+        <button
+          type="button"
+          className="secondary-button small-button"
+          onClick={() => setEditing(false)}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+      </div>
+      {error && <p className="error-message">{error}</p>}
+    </form>
+  )
+}
+
 function AccountPage() {
-  const { currentUser } = useCurrentUser()
+  const { currentUser, updateUser, refreshCurrentUser } = useCurrentUser()
+
+  // Show your new name or email everywhere (sidebar, assignee menus).
+  function handleDetailsChanged(user) {
+    updateUser(user)
+    refreshCurrentUser()
+  }
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -69,8 +166,8 @@ function AccountPage() {
             <span className="avatar member-avatar">
               {initials(currentUser.displayName)}
             </span>
-            <div>
-              <strong>{currentUser.displayName}</strong>
+            <div className="member-details">
+              <NameEditor currentUser={currentUser} onSaved={handleDetailsChanged} />
               <p className="account-email">{currentUser.email}</p>
             </div>
           </div>
@@ -81,9 +178,11 @@ function AccountPage() {
             {ROLE_DESCRIPTIONS[currentUser.role]}
           </p>
           <p className="account-note">
-            Only an admin can change your name, email or role.
+            Only an admin can change your role.
           </p>
         </section>
+
+        <ChangeEmail currentEmail={currentUser.email} onChanged={handleDetailsChanged} />
 
         <EmailPreferences email={currentUser.email} />
 

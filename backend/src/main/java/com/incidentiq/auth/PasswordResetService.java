@@ -1,15 +1,9 @@
 package com.incidentiq.auth;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -39,7 +33,6 @@ public class PasswordResetService {
     static final int MAX_REQUESTS_PER_HOUR = 3;
 
     private static final Logger log = LoggerFactory.getLogger(PasswordResetService.class);
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final PasswordResetTokenRepository tokens;
     private final UserAccountRepository users;
@@ -125,7 +118,7 @@ public class PasswordResetService {
         UUID userId = findUsable(token).getUser().getId();
         Instant now = now();
 
-        if (tokens.use(hash(token.trim()), now) == 0) {
+        if (tokens.use(OneTimeTokens.hash(token.trim()), now) == 0) {
             throw new InvalidResetLinkException();
         }
         tokens.cancelAll(userId, now);
@@ -150,8 +143,8 @@ public class PasswordResetService {
         Instant now = now();
         tokens.cancelAll(user.getId(), now);
 
-        String token = newToken();
-        tokens.save(new PasswordResetToken(user, hash(token), now, now.plus(linkLifetime)));
+        String token = OneTimeTokens.newToken();
+        tokens.save(new PasswordResetToken(user, OneTimeTokens.hash(token), now, now.plus(linkLifetime)));
 
         String why = admin == null
                 ? "Someone (hopefully you) asked to reset the password for your IncidentIQ account."
@@ -176,7 +169,7 @@ public class PasswordResetService {
             throw new InvalidResetLinkException();
         }
         Instant now = now();
-        return tokens.findByTokenHash(hash(token.trim()))
+        return tokens.findByTokenHash(OneTimeTokens.hash(token.trim()))
                 .filter(link -> link.usableAt(now))
                 .orElseThrow(InvalidResetLinkException::new);
     }
@@ -184,21 +177,6 @@ public class PasswordResetService {
     private void requireEmail() {
         if (!available()) {
             throw new PasswordResetUnavailableException();
-        }
-    }
-
-    private static String newToken() {
-        byte[] bytes = new byte[32];
-        RANDOM.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    static String hash(String token) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(token.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 is always available", exception);
         }
     }
 }

@@ -57,6 +57,9 @@ public class SecurityConfig {
                         // "Forgot password?" is for people who can't sign in.
                         .requestMatchers("/api/auth/password-reset", "/api/auth/password-reset/**")
                                 .permitAll()
+                        // Confirming a new email works from the emailed link,
+                        // signed in or not.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/email-change/confirm").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // Only admins manage the team.
                         .requestMatchers(HttpMethod.POST, "/api/users", "/api/users/**")

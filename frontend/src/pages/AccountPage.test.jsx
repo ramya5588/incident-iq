@@ -8,6 +8,7 @@ import { USERS, renderPage } from '../test/render'
 vi.mock('../services/incidentApi', async (importOriginal) => ({
   ...(await importOriginal()),
   changeOwnPassword: vi.fn(),
+  getPendingEmailChange: vi.fn().mockResolvedValue(null),
   getEmailPreferences: vi.fn().mockResolvedValue({
     assigned: true,
     commented: false,

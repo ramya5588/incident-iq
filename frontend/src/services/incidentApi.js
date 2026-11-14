@@ -95,6 +95,38 @@ export async function sendPasswordResetLink(userId) {
     await api.post(`/users/${userId}/password-reset-link`)
 }
 
+/** Change your own display name. Returns the updated user. */
+export async function updateOwnName(displayName) {
+    const response = await api.patch('/auth/profile', { displayName })
+    return response.data
+}
+
+/**
+ * Change your sign-in email. Returns { user, pending }: `pending`
+ * ({ newEmail, expiresAt }) when it must be confirmed from the new address,
+ * null when it applied straight away.
+ */
+export async function requestEmailChange(newEmail, currentPassword) {
+    const response = await api.post('/auth/email-change', { newEmail, currentPassword })
+    return response.data
+}
+
+/** The change waiting for confirmation, or null. */
+export async function getPendingEmailChange() {
+    const response = await api.get('/auth/email-change')
+    return response.status === 204 ? null : response.data
+}
+
+export async function cancelEmailChange() {
+    await api.delete('/auth/email-change')
+}
+
+/** Confirms from the emailed link. Returns the new email. */
+export async function confirmEmailChange(token) {
+    const response = await api.post('/auth/email-change/confirm', { token })
+    return response.data.email
+}
+
 export async function changeOwnPassword(currentPassword, newPassword) {
     await api.put('/auth/password', { currentPassword, newPassword })
 }

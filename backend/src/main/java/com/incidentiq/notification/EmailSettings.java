@@ -44,6 +44,11 @@ public class EmailSettings {
     }
 
     /** The token goes after "#", which browsers never send to a server. */
+    public String emailChangeLink(String token) {
+        return appUrl + "/confirm-email#token=" + token;
+    }
+
+    /** The token goes after "#", which browsers never send to a server. */
     public String passwordResetLink(String token) {
         return appUrl + "/reset-password#token=" + token;
     }

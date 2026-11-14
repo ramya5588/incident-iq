@@ -43,8 +43,11 @@ changed what.
   passwords, and deactivate or reactivate members there. Deactivating ends
   someone's access straight away but keeps their history, and can return
   their open incidents to the queue.
-- **Account page:** change your own password. Your other signed-in devices are
-  signed out.
+- **Account page:** change your own name, sign-in email and password. A new
+  email needs your password and, when email is set up, a click on a link sent
+  to the new address (see [Changing your email](#changing-your-email)).
+  Changing your password signs out your other devices. Only admins change
+  roles.
 - **Sign-in and roles:** session-based sign-in. Reporters, agents and admins
   each get different permissions (see [Roles](#roles)).
 - **Forgot password?** When email is set up, the sign-in page offers a reset
@@ -250,6 +253,24 @@ passwords on the Team page as before.
 - **Admins** can use **Email a reset link** in a member's Reset password panel,
   so the member chooses their own password and no one has to pass one on.
 
+### Changing your email
+
+Your email is how you sign in, so changing it on the Account page takes your
+current password.
+
+- **With email set up,** nothing changes until you click the link sent to the
+  new address, so a typo can't lock you out. The page shows the waiting change
+  and lets you cancel it. Links work once, expire after 24 hours
+  (`incidentiq.auth.email-change-link-lifetime`), and work whether or not
+  you're signed in. Asking again replaces the earlier link, and you can ask 3
+  times an hour.
+- **When it's confirmed,** your old address gets a "your email was changed"
+  notice in case it wasn't you. Your session carries on under the new email.
+- **Without email,** the change applies straight away after the password check.
+- **Rules:** emails stay unique regardless of upper or lower case, checked again
+  at confirmation in case someone took the address meanwhile. Deactivating
+  someone voids their open link.
+
 ## Running in production
 
 [`compose.prod.yaml`](compose.prod.yaml) runs the whole app the way it would
@@ -367,6 +388,11 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /auth/logout` | signed in | Sign out |
 | `GET /auth/me` | anyone | The signed-in user, or 401 |
 | `PUT /auth/password` | signed in | Change your password (`{ currentPassword, newPassword }`) |
+| `PATCH /auth/profile` | signed in | Change your name (`{ displayName }`) |
+| `POST /auth/email-change` | signed in | Change your email (`{ newEmail, currentPassword }`); returns `{ user, pending }`, where `pending` is null if it applied straight away |
+| `GET /auth/email-change` | signed in | Your change waiting for confirmation (`{ newEmail, expiresAt }`), or 204 |
+| `DELETE /auth/email-change` | signed in | Cancel it |
+| `POST /auth/email-change/confirm` | anyone | Confirm from the emailed link (`{ token }`); returns `{ email }` |
 | `GET /auth/password-reset` | anyone | `{ available }`: whether reset links can be emailed |
 | `POST /auth/password-reset` | anyone | Email a reset link (`{ email }`); always 202 with the same message |
 | `POST /auth/password-reset/check` | anyone | 204 if a link (`{ token }`) can still be used, 400 if not |
@@ -402,5 +428,5 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 - Business hours for SLAs (deadlines run around the clock, except while an
   incident is on hold)
 - Slack or other chat notifications, and HTML or digest emails
-- Permanently deleting accounts, and members editing their own name or email
+- Permanently deleting accounts
 - Hosting on a specific cloud provider, HTTPS certificates and automated backups

@@ -1352,6 +1352,77 @@ a.signed-in-as.active strong {
   margin-bottom: 22px;
 }
 
+.member-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #4f46e5;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.name-form {
+  display: grid;
+  gap: 8px;
+  max-width: 360px;
+}
+
+.name-form label {
+  display: grid;
+  gap: 4px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.name-form input {
+  padding: 8px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.name-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pending-change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.pending-change p {
+  flex: 1 1 280px;
+  margin: 0;
+}
+
 .account-email {
   margin: 2px 0 0;
   color: #667085;
