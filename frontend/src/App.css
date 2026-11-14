@@ -1164,6 +1164,50 @@ a.nav-item {
   color: #475569;
 }
 
+.sla-badge.paused {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+/* On hold */
+.details-page .status-form .hold-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  flex-basis: 100%;
+}
+
+.hold-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hold-fields input {
+  min-width: 240px;
+  padding: 9px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.hold-fields .hold-hint {
+  flex-basis: 100%;
+  color: #667085;
+}
+
+.details-page section p.hold-summary {
+  margin: 4px 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
 .stat-link {
   color: inherit;
   text-decoration: none;

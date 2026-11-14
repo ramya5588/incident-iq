@@ -9,12 +9,14 @@ export const SLA_STATE_LABELS = {
   AT_RISK: 'At risk',
   BREACHED: 'Breached',
   MET: 'Met',
+  PAUSED: 'Paused',
 }
 
 /** State of one deadline at `now` (ms since epoch). */
 export function liveState(clock, startedAt, now) {
   if (!clock) return null
-  if (clock.completedAt) return clock.state
+  // On hold: the backend moves the deadline; nothing ticks down meanwhile.
+  if (clock.completedAt || clock.state === 'PAUSED') return clock.state
 
   const due = Date.parse(clock.dueAt)
   if (now >= due) return 'BREACHED'
@@ -40,6 +42,7 @@ export function formatDuration(ms) {
 
 /** Short text for one deadline: "2h left", "Overdue 3h", "Met", "Missed by 5m". */
 export function describeClock(clock, state, now) {
+  if (state === 'PAUSED') return 'Paused'
   const due = Date.parse(clock.dueAt)
 
   if (clock.completedAt) {

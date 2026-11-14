@@ -19,6 +19,15 @@ export function canBeAssigned(user) {
 export const STATUS_LABELS = {
   OPEN: 'Open',
   IN_PROGRESS: 'In progress',
+  ON_HOLD: 'On hold',
   RESOLVED: 'Resolved',
   CLOSED: 'Closed',
+}
+
+/** Why an incident is on hold (the backend's HoldReason). */
+export const HOLD_REASONS = {
+  WAITING_ON_REPORTER: 'Waiting on reporter',
+  WAITING_ON_THIRD_PARTY: 'Waiting on third party',
+  SCHEDULED: 'Scheduled for later',
+  OTHER: 'Other',
 }

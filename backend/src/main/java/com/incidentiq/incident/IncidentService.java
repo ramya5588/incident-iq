@@ -26,6 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class IncidentService {
 
+    /** Still someone's work: counts toward workload, unassigned on deactivation. */
+    static final List<IncidentStatus> ACTIVE_STATUSES = List.of(
+            IncidentStatus.OPEN, IncidentStatus.IN_PROGRESS, IncidentStatus.ON_HOLD);
+
     private final IncidentRepository incidentRepository;
     private final UserAccountRepository userRepository;
     private final EntityManager entityManager;
@@ -138,15 +142,37 @@ public class IncidentService {
         Incident incident = findIncident(incidentId);
         UserAccount actor = findActor(actorId);
         IncidentStatus previous = incident.getStatus();
+        IncidentStatus next = request.status();
 
-        if (previous != request.status()) {
-            incident.updateStatus(request.status(), now());
-            eventRepository.save(IncidentEvent.statusChanged(
-                    incident, previous, request.status(), actor));
-            notifications.notifyStatusChanged(incident, request.status(), actor);
+        if (next == IncidentStatus.ON_HOLD) {
+            if (request.holdReason() == null) {
+                throw new InvalidStatusChangeException(
+                        "Choose why the incident is on hold.");
+            }
+            boolean changed = previous != next
+                    || request.holdReason() != incident.getHoldReason()
+                    || !Objects.equals(request.holdNote(), incident.getHoldNote());
+            if (changed) {
+                incident.putOnHold(request.holdReason(), request.holdNote(), now());
+                eventRepository.save(IncidentEvent.statusChanged(
+                        incident, previous, next, holdMessage(incident), actor));
+                if (previous != next) {
+                    notifications.notifyStatusChanged(incident, next, actor);
+                }
+            }
+        } else if (previous != next) {
+            incident.updateStatus(next, now());
+            eventRepository.save(IncidentEvent.statusChanged(incident, previous, next, actor));
+            notifications.notifyStatusChanged(incident, next, actor);
         }
 
         return toResponse(incidentRepository.saveAndFlush(incident));
+    }
+
+    /** "Waiting on reporter: asked for a screenshot" (shown on the timeline). */
+    private static String holdMessage(Incident incident) {
+        String label = incident.getHoldReason().label();
+        return incident.getHoldNote() == null ? label : label + ": " + incident.getHoldNote();
     }
 
     /**
@@ -238,7 +264,7 @@ public class IncidentService {
     }
 
     /**
-     * Unassigns every open or in-progress incident of {@code userId} (e.g.
+     * Unassigns every open, in-progress or on-hold incident of {@code userId} (e.g.
      * when they're deactivated), recording each change on the timeline.
      *
      * @return how many incidents were unassigned
@@ -247,7 +273,7 @@ public class IncidentService {
     public int unassignOpenIncidents(UUID userId, UUID actorId) {
         UserAccount actor = findActor(actorId);
         List<Incident> incidents = incidentRepository.findByAssignedToIdAndStatusIn(
-                userId, List.of(IncidentStatus.OPEN, IncidentStatus.IN_PROGRESS));
+                userId, ACTIVE_STATUSES);
 
         for (Incident incident : incidents) {
             UserAccount previous = incident.getAssignedTo();
@@ -281,7 +307,19 @@ public class IncidentService {
 
         IncidentEvent comment = eventRepository.saveAndFlush(
                 IncidentEvent.comment(incident, author, request.body()));
-        notifications.notifyCommented(incident, author);
+
+        // The reply they were waiting for: work resumes and the clock restarts.
+        boolean resumed = incident.getStatus() == IncidentStatus.ON_HOLD
+                && incident.getHoldReason() == HoldReason.WAITING_ON_REPORTER
+                && incident.getCreatedBy().getId().equals(author.getId());
+        if (resumed) {
+            incident.updateStatus(IncidentStatus.IN_PROGRESS, now());
+            eventRepository.save(IncidentEvent.statusChanged(
+                    incident, IncidentStatus.ON_HOLD, IncidentStatus.IN_PROGRESS,
+                    "Resumed when the reporter replied", author));
+            incidentRepository.saveAndFlush(incident);
+        }
+        notifications.notifyCommented(incident, author, resumed);
 
         return IncidentEventResponse.from(comment);
     }
@@ -289,9 +327,7 @@ public class IncidentService {
     @Transactional(readOnly = true)
     public List<AssigneeWorkloadResponse> getWorkload() {
         return incidentRepository
-                .countActiveByAssignee(List.of(
-                        IncidentStatus.OPEN,
-                        IncidentStatus.IN_PROGRESS))
+                .countActiveByAssignee(ACTIVE_STATUSES)
                 .stream()
                 .map(row -> new AssigneeWorkloadResponse(
                         row.getUserId(),
@@ -316,6 +352,7 @@ public class IncidentService {
                 total,
                 incidentRepository.countByStatus(IncidentStatus.OPEN),
                 incidentRepository.countByStatus(IncidentStatus.IN_PROGRESS),
+                incidentRepository.countByStatus(IncidentStatus.ON_HOLD),
                 incidentRepository.countByStatus(IncidentStatus.RESOLVED),
                 incidentRepository.countByStatus(IncidentStatus.CLOSED),
                 since,

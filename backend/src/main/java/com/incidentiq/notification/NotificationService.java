@@ -79,9 +79,16 @@ public class NotificationService {
     }
 
     public void notifyCommented(Incident incident, UserAccount author) {
+        notifyCommented(incident, author, false);
+    }
+
+    /** {@code resumed}: the comment took the incident off hold. */
+    public void notifyCommented(Incident incident, UserAccount author, boolean resumed) {
+        String message = resumed
+                ? name(author) + " replied on " + label(incident) + ", so it's back in progress"
+                : name(author) + " commented on " + label(incident);
         send(Arrays.asList(incident.getCreatedBy(), incident.getAssignedTo()),
-                incident, NotificationType.COMMENTED,
-                name(author) + " commented on " + label(incident), author);
+                incident, NotificationType.COMMENTED, message, author);
     }
 
     public void notifyStatusChanged(
@@ -104,6 +111,7 @@ public class NotificationService {
         return switch (status) {
             case OPEN -> "Open";
             case IN_PROGRESS -> "In progress";
+            case ON_HOLD -> "On hold";
             case RESOLVED -> "Resolved";
             case CLOSED -> "Closed";
         };

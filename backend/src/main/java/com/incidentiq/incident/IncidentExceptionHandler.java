@@ -26,9 +26,9 @@ public class IncidentExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
-    @ExceptionHandler(InvalidAssigneeException.class)
-    public ResponseEntity<ApiError> handleInvalidAssignee(
-            InvalidAssigneeException exception) {
+    @ExceptionHandler({InvalidAssigneeException.class, InvalidStatusChangeException.class})
+    public ResponseEntity<ApiError> handleBadRequest(
+            RuntimeException exception) {
 
         ApiError error = new ApiError(
                 Instant.now(),

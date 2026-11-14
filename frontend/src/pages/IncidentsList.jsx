@@ -13,6 +13,7 @@ const SEARCH_DELAY_MS = 300
 const STATUS_OPTIONS = [
   { value: 'OPEN', label: 'Open' },
   { value: 'IN_PROGRESS', label: 'In progress' },
+  { value: 'ON_HOLD', label: 'On hold' },
   { value: 'RESOLVED', label: 'Resolved' },
   { value: 'CLOSED', label: 'Closed' },
 ]

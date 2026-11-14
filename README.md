@@ -15,9 +15,14 @@ changed what.
   bookmark or share a search.
 - **Incident page:** edit title, description, priority and category; change
   status; assign an agent; run AI triage.
+- **On hold:** put an incident on hold while you wait on the reporter, a third
+  party or a scheduled time. You pick a reason and can add a note, and both
+  show on the timeline. The resolution clock pauses while it's on hold. If
+  you're waiting on the reporter, their next comment puts it back in progress
+  and tells the assignee.
 - **SLA tracking:** each incident gets a respond-by and a resolve-by deadline
-  from its priority. Each one shows as on track, at risk, breached or met on
-  the list and the incident page, and there's an "Overdue only" filter (see
+  from its priority. Each one shows as on track, at risk, breached, met or
+  paused on the list and the incident page, and there's an "Overdue only" filter (see
   [SLA targets](#sla-targets)).
 - **Notifications:** a bell in the sidebar with an unread count. You're
   notified when an incident is assigned to you, when someone comments on an
@@ -148,6 +153,11 @@ deactivate yourself.
   resolving also counts.
 - Deadlines are measured from when the incident was reported and run around
   the clock. Changing the priority recalculates both deadlines.
+- **On hold pauses the resolve deadline:** time spent on hold is added to it
+  when work resumes, and every hold counts. Paused incidents aren't overdue
+  and don't trigger missed-deadline alerts. A deadline that was already
+  missed before the hold stays missed. Putting an incident on hold also
+  counts as responding to it.
 - **At risk** means a quarter or less of the time is left. **Breached** means
   the deadline passed before it was done.
 - Missed deadlines are checked every minute
@@ -296,7 +306,7 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /incidents` | signed in | Report an incident |
 | `GET /incidents/{id}` | signed in | Get one incident |
 | `PATCH /incidents/{id}` | agent, admin | Edit title, description, priority, category |
-| `PATCH /incidents/{id}/status` | agent, admin | Change status |
+| `PATCH /incidents/{id}/status` | agent, admin | Change status (`{ status }`; for `ON_HOLD` also `holdReason` and an optional `holdNote`) |
 | `PATCH /incidents/{id}/assignee` | agent, admin | Assign or unassign |
 | `POST /incidents/{id}/triage` | agent, admin | Run AI triage |
 | `GET /incidents/{id}/events` | signed in | Activity timeline, newest first |
@@ -317,7 +327,8 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 
 ## Not built yet
 
-- Business hours and pausing SLAs (deadlines currently run around the clock)
+- Business hours for SLAs (deadlines run around the clock, except while an
+  incident is on hold)
 - Email or Slack notifications, and choosing which notifications you get
 - Permanently deleting accounts, members editing their own name or email, and
   password-reset emails

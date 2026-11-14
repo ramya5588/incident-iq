@@ -22,6 +22,9 @@ public record IncidentResponse(
         Instant createdAt,
         Instant updatedAt,
         Instant resolvedAt,
+        HoldReason holdReason,
+        String holdNote,
+        Instant onHoldSince,
         IncidentSla sla) {
 
     public static IncidentResponse from(Incident incident, IncidentSla sla) {
@@ -48,6 +51,9 @@ public record IncidentResponse(
                 incident.getCreatedAt(),
                 incident.getUpdatedAt(),
                 incident.getResolvedAt(),
+                incident.getHoldReason(),
+                incident.getHoldNote(),
+                incident.getOnHoldSince(),
                 sla);
     }
 }

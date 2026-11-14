@@ -14,7 +14,10 @@ function SlaBadge({ clock, startedAt, now, kind }) {
 
   const state = liveState(clock, startedAt, now)
   const text = describeClock(clock, state, now)
-  const title = `${SLA_STATE_LABELS[state]}. Due ${formatDeadline(clock.dueAt)}`
+  const title =
+    state === 'PAUSED'
+      ? 'Paused while on hold. The deadline moves later until work resumes.'
+      : `${SLA_STATE_LABELS[state]}. Due ${formatDeadline(clock.dueAt)}`
 
   return (
     <span

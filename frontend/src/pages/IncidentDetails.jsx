@@ -10,7 +10,12 @@ import {
 import IncidentTimeline from '../components/IncidentTimeline'
 import IncidentEditForm from '../components/IncidentEditForm'
 import { useCurrentUser } from '../context/currentUserContext'
-import { STATUS_LABELS, canBeAssigned, canWorkIncidents } from '../utils/roles'
+import {
+    HOLD_REASONS,
+    STATUS_LABELS,
+    canBeAssigned,
+    canWorkIncidents,
+} from '../utils/roles'
 import SlaBadge from '../components/SlaBadge'
 import { useNow } from '../hooks/useNow'
 import { formatDeadline } from '../utils/sla'
@@ -20,6 +25,8 @@ const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([value, label]) => ({
     label,
 }))
 
+const HOLD_NOTE_MAX_LENGTH = 200
+
 function SlaRow({ label, hint, clock, startedAt, now }) {
     return (
         <div className="sla-row">
@@ -28,7 +35,11 @@ function SlaRow({ label, hint, clock, startedAt, now }) {
                 <small>{hint}</small>
             </dt>
             <dd>
-                <span className="sla-due">{formatDeadline(clock.dueAt)}</span>
+                <span className="sla-due">
+                    {clock.state === 'PAUSED'
+                        ? 'Moves later while on hold'
+                        : formatDeadline(clock.dueAt)}
+                </span>
                 <SlaBadge clock={clock} startedAt={startedAt} now={now} />
                 {clock.completedAt && (
                     <small className="sla-done">
@@ -52,6 +63,8 @@ function IncidentDetails() {
     const [updatingStatus, setUpdatingStatus] = useState(false)
     const [statusError, setStatusError] = useState('')
     const [statusMessage, setStatusMessage] = useState('')
+    const [holdReason, setHoldReason] = useState('')
+    const [holdNote, setHoldNote] = useState('')
     const { users, usersError, currentUser } = useCurrentUser()
     const now = useNow()
     // Reporters (USER role) can view and comment; the rest is for agents/admins.
@@ -71,6 +84,8 @@ function IncidentDetails() {
                 const data = await getIncidentById(id)
                 setIncident(data)
                 setSelectedStatus(data.status)
+                setHoldReason(data.holdReason ?? '')
+                setHoldNote(data.holdNote ?? '')
                 setSelectedAssignee(data.assignedToId ?? '')
             } catch (requestError) {
                 console.error(requestError)
@@ -107,10 +122,15 @@ function IncidentDetails() {
         setStatusMessage('')
 
         try {
-            const updatedIncident = await updateIncidentStatus(id, selectedStatus)
-            setIncident(updatedIncident)
-            setSelectedStatus(updatedIncident.status)
-            setStatusMessage('Status updated.')
+            const hold =
+                selectedStatus === 'ON_HOLD' ? { holdReason, holdNote } : {}
+            const updatedIncident = await updateIncidentStatus(id, selectedStatus, hold)
+            showStatus(updatedIncident)
+            setStatusMessage(
+                updatedIncident.status === 'ON_HOLD'
+                    ? 'On hold. The resolution clock is paused.'
+                    : 'Status updated.'
+            )
             refreshTimeline()
         } catch (requestError) {
             console.error(requestError)
@@ -119,6 +139,27 @@ function IncidentDetails() {
             )
         } finally {
             setUpdatingStatus(false)
+        }
+    }
+
+    function showStatus(updatedIncident) {
+        setIncident(updatedIncident)
+        setSelectedStatus(updatedIncident.status)
+        setHoldReason(updatedIncident.holdReason ?? '')
+        setHoldNote(updatedIncident.holdNote ?? '')
+    }
+
+    // A reporter's reply can take the incident off hold, so reload it.
+    async function handleCommented() {
+        if (incident?.status !== 'ON_HOLD') return
+        try {
+            const updatedIncident = await getIncidentById(id)
+            if (updatedIncident.status !== incident.status) {
+                showStatus(updatedIncident)
+                refreshTimeline()
+            }
+        } catch (requestError) {
+            console.error(requestError)
         }
     }
 
@@ -167,6 +208,13 @@ function IncidentDetails() {
     if (!incident) {
         return <main className="details-page">Incident not found.</main>
     }
+
+    const holdChanged =
+        selectedStatus === 'ON_HOLD' &&
+        (holdReason !== (incident.holdReason ?? '') ||
+            holdNote.trim() !== (incident.holdNote ?? ''))
+    const statusUnchanged = selectedStatus === incident.status && !holdChanged
+    const missingHoldReason = selectedStatus === 'ON_HOLD' && holdReason === ''
 
     // Active agents and admins, plus whoever is assigned now (so the menu
     // still shows them if their role changed or they were deactivated).
@@ -255,16 +303,70 @@ function IncidentDetails() {
                             className="secondary-button"
                             type="submit"
                             disabled={
-                                updatingStatus || selectedStatus === incident.status
+                                updatingStatus || statusUnchanged || missingHoldReason
                             }
                         >
                             {updatingStatus ? 'Updating...' : 'Update status'}
                         </button>
+
+                        {selectedStatus === 'ON_HOLD' && (
+                            <div className="hold-fields">
+                                <label>
+                                    Waiting for
+                                    <select
+                                        value={holdReason}
+                                        onChange={(event) => {
+                                            setHoldReason(event.target.value)
+                                            setStatusMessage('')
+                                        }}
+                                        disabled={updatingStatus}
+                                        required
+                                    >
+                                        <option value="">Choose a reason…</option>
+                                        {Object.entries(HOLD_REASONS).map(
+                                            ([value, label]) => (
+                                                <option key={value} value={value}>
+                                                    {label}
+                                                </option>
+                                            )
+                                        )}
+                                    </select>
+                                </label>
+                                <label>
+                                    Note (optional)
+                                    <input
+                                        type="text"
+                                        value={holdNote}
+                                        maxLength={HOLD_NOTE_MAX_LENGTH}
+                                        placeholder="e.g. Vendor ticket 4471"
+                                        onChange={(event) => {
+                                            setHoldNote(event.target.value)
+                                            setStatusMessage('')
+                                        }}
+                                        disabled={updatingStatus}
+                                    />
+                                </label>
+                                <small className="hold-hint">
+                                    {holdReason === 'WAITING_ON_REPORTER'
+                                        ? "The resolution clock pauses. The reporter's next comment puts it back in progress."
+                                        : 'The resolution clock pauses until the status changes.'}
+                                </small>
+                            </div>
+                        )}
                     </form>
                 ) : (
                     <p>
                         <strong>Status:</strong>{' '}
                         {STATUS_LABELS[incident.status] ?? incident.status}
+                    </p>
+                )}
+
+                {incident.status === 'ON_HOLD' && (
+                    <p className="hold-summary">
+                        <strong>On hold</strong> since{' '}
+                        {formatDeadline(incident.onHoldSince)}:{' '}
+                        {HOLD_REASONS[incident.holdReason] ?? incident.holdReason}
+                        {incident.holdNote ? `. ${incident.holdNote}` : ''}
                     </p>
                 )}
 
@@ -407,7 +509,11 @@ function IncidentDetails() {
                 </section>
             )}
 
-            <IncidentTimeline incidentId={id} refreshKey={timelineKey} />
+            <IncidentTimeline
+                incidentId={id}
+                refreshKey={timelineKey}
+                onCommented={handleCommented}
+            />
         </main>
     )
 }

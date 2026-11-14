@@ -201,7 +201,8 @@ export function describeApiError(requestError, fallback) {
     return fallback
 }
 
-export async function updateIncidentStatus(id, status) {
-    const response = await api.patch(`/incidents/${id}/status`, { status })
+/** `hold` = { holdReason, holdNote } when the status is ON_HOLD. */
+export async function updateIncidentStatus(id, status, hold = {}) {
+    const response = await api.patch(`/incidents/${id}/status`, { status, ...hold })
     return response.data
 }

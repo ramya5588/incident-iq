@@ -88,6 +88,16 @@ public class IncidentEvent {
                 from.name(), to.name(), null, actor);
     }
 
+    /** Status change with a note, e.g. why it was put on hold. */
+    public static IncidentEvent statusChanged(
+            Incident incident, IncidentStatus from, IncidentStatus to,
+            String message, UserAccount actor) {
+
+        return new IncidentEvent(
+                incident, IncidentEventType.STATUS_CHANGED,
+                from.name(), to.name(), message, actor);
+    }
+
     /** {@code actor} may be null when the caller didn't say who they are. */
     public static IncidentEvent assigneeChanged(
             Incident incident, UserAccount from, UserAccount to,

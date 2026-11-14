@@ -1,6 +1,7 @@
 package com.incidentiq.incident;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import com.incidentiq.user.UserAccount;
@@ -100,6 +101,22 @@ public class Incident {
     @Column(name = "resolution_breach_notified_at")
     private Instant resolutionBreachNotifiedAt;
 
+    /** Why it's on hold; set only while the status is ON_HOLD. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "hold_reason", length = 30)
+    private HoldReason holdReason;
+
+    @Column(name = "hold_note", length = 200)
+    private String holdNote;
+
+    /** When the current hold started; set only while the status is ON_HOLD. */
+    @Column(name = "on_hold_since")
+    private Instant onHoldSince;
+
+    /** Time spent in earlier, finished holds; added to the resolution deadline. */
+    @Column(name = "sla_paused_micros", nullable = false)
+    private long slaPausedMicros;
+
     protected Incident() {
         // Required by JPA
     }
@@ -130,7 +147,7 @@ public class Incident {
 
     private void applyTarget(SlaProperties.Target target) {
         this.respondBy = createdAt.plus(target.respond());
-        this.resolveBy = createdAt.plus(target.resolve());
+        this.resolveBy = createdAt.plus(target.resolve()).plus(slaPausedMicros, ChronoUnit.MICROS);
 
         // A deadline moved past the time its breach was announced can be
         // breached (and announced) again.
@@ -194,7 +211,12 @@ public class Incident {
         }
     }
 
+    /** Changes status; use {@link #putOnHold} to put it on hold. */
     public void updateStatus(IncidentStatus status, Instant now) {
+        if (status == IncidentStatus.ON_HOLD) {
+            throw new IllegalArgumentException("Use putOnHold to put an incident on hold");
+        }
+        endHold(now);
         this.status = status;
 
         if (status != IncidentStatus.OPEN) {
@@ -207,6 +229,37 @@ public class Incident {
                 || status == IncidentStatus.IN_PROGRESS) {
             this.resolvedAt = null;
         }
+    }
+
+    /**
+     * Pauses the resolution clock. If it's already on hold, only the reason
+     * and note change (the hold keeps its start time).
+     */
+    public void putOnHold(HoldReason reason, String note, Instant now) {
+        if (status != IncidentStatus.ON_HOLD) {
+            this.status = IncidentStatus.ON_HOLD;
+            this.onHoldSince = now;
+            this.resolvedAt = null;
+            markResponded(now);
+        }
+        this.holdReason = reason;
+        this.holdNote = note;
+    }
+
+    /** Ends a hold, if any: the time on hold moves the resolution deadline later. */
+    private void endHold(Instant now) {
+        if (onHoldSince == null) {
+            return;
+        }
+        long paused = Math.max(0, ChronoUnit.MICROS.between(onHoldSince, now));
+        slaPausedMicros += paused;
+        resolveBy = resolveBy.plus(paused, ChronoUnit.MICROS);
+        if (resolutionBreachNotifiedAt != null && resolveBy.isAfter(resolutionBreachNotifiedAt)) {
+            resolutionBreachNotifiedAt = null;
+        }
+        onHoldSince = null;
+        holdReason = null;
+        holdNote = null;
     }
 
     private void markResponded(Instant now) {
@@ -302,6 +355,22 @@ public class Incident {
 
     public Instant getResolutionBreachNotifiedAt() {
         return resolutionBreachNotifiedAt;
+    }
+
+    public HoldReason getHoldReason() {
+        return holdReason;
+    }
+
+    public String getHoldNote() {
+        return holdNote;
+    }
+
+    public Instant getOnHoldSince() {
+        return onHoldSince;
+    }
+
+    public long getSlaPausedMicros() {
+        return slaPausedMicros;
     }
 
     public Instant getResolvedAt() {

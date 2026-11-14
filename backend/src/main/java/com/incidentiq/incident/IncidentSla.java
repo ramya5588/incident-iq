@@ -1,5 +1,6 @@
 package com.incidentiq.incident;
 
+import java.time.Duration;
 import java.time.Instant;
 
 /**
@@ -16,7 +17,9 @@ public record IncidentSla(Clock response, Clock resolution) {
         /** Past the deadline: still open, or done late. */
         BREACHED,
         /** Done on time. */
-        MET
+        MET,
+        /** On hold: the clock is stopped and the deadline moves later while it waits. */
+        PAUSED
     }
 
     /**
@@ -44,8 +47,22 @@ public record IncidentSla(Clock response, Clock resolution) {
         return new IncidentSla(
                 Clock.of(incident.getCreatedAt(), incident.getRespondBy(),
                         incident.getFirstRespondedAt(), now),
-                Clock.of(incident.getCreatedAt(), incident.getResolveBy(),
-                        resolutionCompletedAt(incident), now));
+                resolution(incident, now));
+    }
+
+    private static Clock resolution(Incident incident, Instant now) {
+        Instant heldSince = incident.getOnHoldSince();
+        if (heldSince == null) {
+            return Clock.of(incident.getCreatedAt(), incident.getResolveBy(),
+                    resolutionCompletedAt(incident), now);
+        }
+        // Missed before the hold began: a hold doesn't undo that.
+        if (!incident.getResolveBy().isAfter(heldSince)) {
+            return new Clock(incident.getResolveBy(), null, State.BREACHED);
+        }
+        // The deadline if work resumed right now.
+        Duration held = now.isAfter(heldSince) ? Duration.between(heldSince, now) : Duration.ZERO;
+        return new Clock(incident.getResolveBy().plus(held), null, State.PAUSED);
     }
 
     /** Resolved time; an incident closed without resolving counts as done when closed. */

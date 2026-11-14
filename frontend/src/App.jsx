@@ -95,7 +95,13 @@ function Dashboard() {
           <article className="stat-card">
             <span>In progress</span>
             <strong>{statValue(stats?.inProgress)}</strong>
-            <small>Being worked on</small>
+            <small>
+              {stats?.onHold > 0 ? (
+                <Link to="/incidents?status=ON_HOLD">{stats.onHold} more on hold</Link>
+              ) : (
+                'Being worked on'
+              )}
+            </small>
           </article>
 
           <article className="stat-card">

@@ -5,13 +5,7 @@ import {
   getIncidentEvents,
 } from '../services/incidentApi'
 import { useCurrentUser } from '../context/currentUserContext'
-
-const STATUS_LABELS = {
-  OPEN: 'Open',
-  IN_PROGRESS: 'In progress',
-  RESOLVED: 'Resolved',
-  CLOSED: 'Closed',
-}
+import { STATUS_LABELS } from '../utils/roles'
 
 const COMMENT_MAX_LENGTH = 2000
 
@@ -81,8 +75,9 @@ function describeEvent(event) {
 /**
  * Activity timeline for an incident with a comment box.
  * Bump `refreshKey` to reload after the incident changes elsewhere.
+ * `onCommented` is called after a comment is posted.
  */
-function IncidentTimeline({ incidentId, refreshKey }) {
+function IncidentTimeline({ incidentId, refreshKey, onCommented }) {
   const { currentUser } = useCurrentUser()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -127,6 +122,7 @@ function IncidentTimeline({ incidentId, refreshKey }) {
       const comment = await addIncidentComment(incidentId, body)
       setEvents((current) => [comment, ...current])
       setBody('')
+      onCommented?.()
     } catch (requestError) {
       console.error(requestError)
       setPostError(describeApiError(requestError, 'Unable to add the comment.'))

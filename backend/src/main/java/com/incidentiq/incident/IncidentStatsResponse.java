@@ -10,12 +10,13 @@ import java.time.Instant;
  *        {@code resolvedSince} (includes ones closed after resolving)
  * @param aiTriagedPercentage share of all incidents with AI triage, 0–100, rounded
  * @param slaBreached open or in-progress incidents past a response or
- *        resolution deadline
+ *        resolution deadline (on-hold incidents are paused, so not counted)
  */
 public record IncidentStatsResponse(
         long total,
         long open,
         long inProgress,
+        long onHold,
         long resolved,
         long closed,
         Instant resolvedSince,

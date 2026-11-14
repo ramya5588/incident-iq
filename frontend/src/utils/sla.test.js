@@ -24,6 +24,12 @@ describe('liveState', () => {
     expect(liveState(met, START, at('2026-02-01T00:00:00Z'))).toBe('MET')
   })
 
+  it('stays paused while on hold, whatever the time', () => {
+    const paused = { dueAt: DUE, completedAt: null, state: 'PAUSED' }
+    expect(liveState(paused, START, at('2026-01-09T00:00:00Z'))).toBe('PAUSED')
+    expect(describeClock(paused, 'PAUSED', at('2026-01-09T00:00:00Z'))).toBe('Paused')
+  })
+
   it('handles a missing clock', () => {
     expect(liveState(null, START, at(DUE))).toBeNull()
   })
