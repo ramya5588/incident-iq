@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.incidentiq.auth.AppUserPrincipal;
+import com.incidentiq.auth.PasswordResetService;
 
 import jakarta.validation.Valid;
 
@@ -25,8 +26,10 @@ import jakarta.validation.Valid;
 public class UserController {
 
     private final UserAccountService service;
+    private final PasswordResetService passwordResets;
 
-    public UserController(UserAccountService service) {
+    public UserController(UserAccountService service, PasswordResetService passwordResets) {
+        this.passwordResets = passwordResets;
         this.service = service;
     }
 
@@ -87,6 +90,16 @@ public class UserController {
     }
 
     /** Admin only (SecurityConfig). */
+    /** Emails the member a link to choose their own new password. */
+    @PostMapping("/{userId}/password-reset-link")
+    public ResponseEntity<Void> sendPasswordResetLink(
+            @PathVariable UUID userId,
+            @AuthenticationPrincipal AppUserPrincipal admin) {
+
+        passwordResets.sendLinkFromAdmin(userId, admin.id());
+        return ResponseEntity.accepted().build();
+    }
+
     @PutMapping("/{userId}/password")
     public ResponseEntity<Void> resetPassword(
             @PathVariable UUID userId,

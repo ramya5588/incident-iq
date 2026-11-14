@@ -42,4 +42,9 @@ public class EmailSettings {
     public String accountLink() {
         return appUrl + "/account";
     }
+
+    /** The token goes after "#", which browsers never send to a server. */
+    public String passwordResetLink(String token) {
+        return appUrl + "/reset-password#token=" + token;
+    }
 }

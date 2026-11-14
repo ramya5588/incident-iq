@@ -1119,6 +1119,45 @@ a.nav-item {
   margin: 0;
 }
 
+.signin-card h1 + form,
+.signin-card h1 + .auth-done,
+.signin-card h1 + .auth-hint {
+  margin-top: 20px;
+}
+
+.auth-footer {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 14px;
+}
+
+.auth-footer a,
+.auth-done a {
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.auth-done p {
+  margin: 0 0 10px;
+  color: #344054;
+}
+
+.auth-hint,
+.auth-done .auth-hint {
+  color: #667085;
+  font-size: 14px;
+}
+
+.reset-email {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  color: #667085;
+  font-size: 14px;
+}
+
 .reported-as,
 .comment-author {
   margin: 0;

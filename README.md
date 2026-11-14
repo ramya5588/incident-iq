@@ -47,6 +47,10 @@ changed what.
   signed out.
 - **Sign-in and roles:** session-based sign-in. Reporters, agents and admins
   each get different permissions (see [Roles](#roles)).
+- **Forgot password?** When email is set up, the sign-in page offers a reset
+  link by email, and admins can email a member a link from the Team page
+  instead of choosing a password for them (see
+  [Password reset](#password-reset)).
 - **AI triage:** suggests priority and category and writes a summary. A local
   rule-based provider is the default; OpenAI is optional.
 
@@ -223,6 +227,29 @@ isn't set up.
 - **The health check ignores email**, so a mail server that's down never makes
   the app report itself unhealthy.
 
+### Password reset
+
+With email set up, "Forgot password?" on the sign-in page emails a link to
+choose a new password. Without email, the link isn't shown and admins reset
+passwords on the Team page as before.
+
+- **Same answer for everyone:** asking for a link always says "If an account
+  with that email exists, we've sent it a link", so it can't be used to find
+  out who has an account. Deactivated accounts never get one.
+- **Links** hold a random 256-bit token, work once and expire after 30 minutes
+  (`incidentiq.auth.password-reset-link-lifetime`). Only a SHA-256 hash of the
+  token is stored. The token sits after `#` in the link, so browsers never send
+  it to a server or write it to access logs, and the page removes it from the
+  address bar.
+- **Limits:** a new link cancels the older ones, and an account can ask for 3
+  links an hour; more requests get the same answer but send nothing. If two
+  requests try to use one link at once, only one succeeds.
+- **After a reset** every other link is cancelled, other signed-in sessions are
+  signed out on their next request, and the person gets a "your password was
+  changed" email.
+- **Admins** can use **Email a reset link** in a member's Reset password panel,
+  so the member chooses their own password and no one has to pass one on.
+
 ## Running in production
 
 [`compose.prod.yaml`](compose.prod.yaml) runs the whole app the way it would
@@ -340,6 +367,10 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /auth/logout` | signed in | Sign out |
 | `GET /auth/me` | anyone | The signed-in user, or 401 |
 | `PUT /auth/password` | signed in | Change your password (`{ currentPassword, newPassword }`) |
+| `GET /auth/password-reset` | anyone | `{ available }`: whether reset links can be emailed |
+| `POST /auth/password-reset` | anyone | Email a reset link (`{ email }`); always 202 with the same message |
+| `POST /auth/password-reset/check` | anyone | 204 if a link (`{ token }`) can still be used, 400 if not |
+| `POST /auth/password-reset/confirm` | anyone | Set a new password (`{ token, newPassword }`) |
 | `GET /incidents` | signed in | List incidents (`q`, `status`, `priority`, `overdue`, `page`, `size`). `overdue=true` keeps open or in-progress incidents past a deadline. `q` searches title, description and category, or finds an incident number such as `42` or `INC-042` |
 | `POST /incidents` | signed in | Report an incident |
 | `GET /incidents/{id}` | signed in | Get one incident |
@@ -364,12 +395,12 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /users/{id}/reactivate` | admin | Restore a deactivated member |
 | `PATCH /users/{id}/role` | admin | Change a member's role (`{ role }`); the last admin can't be demoted |
 | `PUT /users/{id}/password` | admin | Reset a member's password (`{ newPassword }`) |
+| `POST /users/{id}/password-reset-link` | admin | Email a member a reset link |
 
 ## Not built yet
 
 - Business hours for SLAs (deadlines run around the clock, except while an
   incident is on hold)
 - Slack or other chat notifications, and HTML or digest emails
-- Permanently deleting accounts, members editing their own name or email, and
-  password-reset emails
+- Permanently deleting accounts, and members editing their own name or email
 - Hosting on a specific cloud provider, HTTPS certificates and automated backups

@@ -7,6 +7,7 @@ import {
   getUsers,
   getWorkload,
   reactivateUser,
+  sendPasswordResetLink,
   updateUserDetails,
 } from '../services/incidentApi'
 import { USERS, renderPage } from '../test/render'
@@ -19,6 +20,8 @@ vi.mock('../services/incidentApi', async (importOriginal) => ({
   reactivateUser: vi.fn(),
   updateUserDetails: vi.fn(),
   getUnreadNotificationCount: vi.fn().mockResolvedValue(0),
+  getPasswordResetAvailability: vi.fn().mockResolvedValue(true),
+  sendPasswordResetLink: vi.fn(),
 }))
 
 const member = (overrides) => ({ active: true, deactivatedAt: null, ...overrides })
@@ -156,5 +159,25 @@ describe('Team page member management', () => {
     await screen.findByText('2 active members · 1 deactivated')
     expect(screen.queryByRole('button', { name: /Deactivate/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Edit / })).not.toBeInTheDocument()
+  })
+
+  it('can email a member a reset link instead of setting a password', async () => {
+    sendPasswordResetLink.mockReset().mockResolvedValue()
+    const user = userEvent.setup()
+    renderPage(<Team />, { currentUser: USERS.admin })
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Reset password for Alex Agent' })
+    )
+    await user.click(
+      await screen.findByRole('button', { name: 'Email Alex Agent a reset link' })
+    )
+
+    expect(sendPasswordResetLink).toHaveBeenCalledWith('u-agent')
+    expect(
+      await screen.findByText(
+        'Reset link sent to alex@incidentiq.test. It works once and expires in 30 minutes.'
+      )
+    ).toBeInTheDocument()
   })
 })

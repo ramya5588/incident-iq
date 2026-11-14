@@ -324,4 +324,18 @@ class AuthApiTest {
         assertThat(login("alex@incidentiq.test", PASSWORD).getResponse().getStatus())
                 .isEqualTo(200);
     }
+
+    @Test
+    void passwordResetIsUnavailableWithoutEmail() throws Exception {
+        mockMvc.perform(get("/api/auth/password-reset"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(false));
+
+        mockMvc.perform(post("/api/auth/password-reset").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\": \"alex@incidentiq.test\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(
+                        "Password reset by email isn't available because email isn't set up on this server."));
+    }
 }

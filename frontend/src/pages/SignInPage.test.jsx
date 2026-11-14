@@ -1,17 +1,24 @@
-import { render, screen } from '@testing-library/react'
+import { render as rtlRender, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SignInPage from './SignInPage'
-import { signIn } from '../services/incidentApi'
+import { getPasswordResetAvailability, signIn } from '../services/incidentApi'
 
 vi.mock('../services/incidentApi', async (importOriginal) => ({
   ...(await importOriginal()),
   signIn: vi.fn(),
+  getPasswordResetAvailability: vi.fn(),
 }))
+
+function render(ui) {
+  return rtlRender(<MemoryRouter>{ui}</MemoryRouter>)
+}
 
 describe('SignInPage', () => {
   beforeEach(() => {
     signIn.mockReset()
+    getPasswordResetAvailability.mockReset().mockResolvedValue(false)
   })
 
   async function submit(email, password) {
@@ -57,5 +64,20 @@ describe('SignInPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Unable to reach the server. Is the backend running?'
     )
+  })
+
+  it('offers "Forgot password?" only when the server can email', async () => {
+    getPasswordResetAvailability.mockResolvedValue(true)
+    const { unmount } = render(<SignInPage onSignedIn={vi.fn()} />)
+    expect(await screen.findByRole('link', { name: 'Forgot password?' })).toHaveAttribute(
+      'href',
+      '/forgot-password'
+    )
+    unmount()
+
+    getPasswordResetAvailability.mockResolvedValue(false)
+    render(<SignInPage onSignedIn={vi.fn()} />)
+    await Promise.resolve()
+    expect(screen.queryByRole('link', { name: 'Forgot password?' })).not.toBeInTheDocument()
   })
 })

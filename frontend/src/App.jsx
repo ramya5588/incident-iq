@@ -14,6 +14,8 @@ import IncidentDetails from './pages/IncidentDetails'
 import IncidentsList from './pages/IncidentsList'
 import Team from './pages/Team'
 import SignInPage from './pages/SignInPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import AccountPage from './pages/AccountPage'
 import Sidebar from './components/Sidebar'
 import CreateIncidentModal from './components/CreateIncidentModal'
@@ -341,7 +343,13 @@ function App() {
   }
 
   if (currentUser === null) {
-    return <SignInPage onSignedIn={setCurrentUser} />
+    return (
+      <Routes>
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="*" element={<SignInPage onSignedIn={setCurrentUser} />} />
+      </Routes>
+    )
   }
 
   return (
@@ -353,6 +361,12 @@ function App() {
           <Route path="/incidents/:id" element={<IncidentDetails />} />
           <Route path="/team" element={<Team />} />
           <Route path="/account" element={<AccountPage />} />
+          {/* A reset link opened while signed in still works; the reset
+              signs this session out too. */}
+          <Route
+            path="/reset-password"
+            element={<ResetPasswordPage onReset={refreshCurrentUser} />}
+          />
         </Routes>
 
         {showCreateIncident && (

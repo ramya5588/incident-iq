@@ -10,6 +10,8 @@ import {
   getWorkload,
   reactivateUser,
   resetUserPassword,
+  sendPasswordResetLink,
+  getPasswordResetAvailability,
   updateUserDetails,
 } from '../services/incidentApi'
 import { useCurrentUser } from '../context/currentUserContext'
@@ -29,7 +31,7 @@ const EMPTY_MEMBER = { displayName: '', email: '', role: 'AGENT', password: '' }
  * doesn't change anyone's access), edit name and email, reset the password,
  * and deactivate or reactivate. Only one of those panels is open at a time.
  */
-function MemberRow({ user, activeCount, admin, isYou, onUpdated }) {
+function MemberRow({ user, activeCount, admin, isYou, canEmailReset, onUpdated }) {
   const [role, setRole] = useState(user.role)
   const [savingRole, setSavingRole] = useState(false)
   const [panel, setPanel] = useState(null) // 'edit' | 'reset' | 'deactivate'
@@ -121,6 +123,16 @@ function MemberRow({ user, activeCount, admin, isYou, onUpdated }) {
         `Password reset. Share it with ${user.displayName} securely. They have been signed out everywhere.`
       )
     }, 'Unable to reset the password.')
+  }
+
+  function emailResetLink() {
+    run(async () => {
+      await sendPasswordResetLink(user.id)
+      closePanel()
+      setMessage(
+        `Reset link sent to ${user.email}. It works once and expires in 30 minutes.`
+      )
+    }, 'Unable to send the reset link.')
   }
 
   function confirmDeactivate() {
@@ -315,6 +327,20 @@ function MemberRow({ user, activeCount, admin, isYou, onUpdated }) {
             </form>
           )}
 
+          {panel === 'reset' && canEmailReset && (
+            <div className="reset-email">
+              <button
+                type="button"
+                className="primary-button small-button"
+                onClick={emailResetLink}
+                disabled={busy}
+              >
+                Email {user.displayName} a reset link
+              </button>
+              <span>or set a new password for them:</span>
+            </div>
+          )}
+
           {panel === 'reset' && (
             <form className="reset-form" onSubmit={savePassword}>
               <label>
@@ -414,12 +440,25 @@ function Team() {
   const [formError, setFormError] = useState('')
   const [formMessage, setFormMessage] = useState('')
   const [showDeactivated, setShowDeactivated] = useState(false)
+  const [canEmailReset, setCanEmailReset] = useState(false)
 
   const deactivatedCount = users.filter((user) => user.active === false).length
   const activeCount = users.length - deactivatedCount
   const visibleUsers = showDeactivated
     ? users
     : users.filter((user) => user.active !== false)
+
+  // Reset links need email; without it admins set passwords directly.
+  useEffect(() => {
+    if (!admin) return
+    let cancelled = false
+    getPasswordResetAvailability()
+      .then((available) => !cancelled && setCanEmailReset(available))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [admin])
 
   useEffect(() => {
     async function loadTeam() {
@@ -658,6 +697,7 @@ function Team() {
                   activeCount={workload[user.id] ?? 0}
                   admin={admin}
                   isYou={user.id === currentUser?.id}
+                  canEmailReset={canEmailReset}
                   onUpdated={handleMemberUpdated}
                 />
               ))}

@@ -54,6 +54,9 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login", "/api/auth/me").permitAll()
+                        // "Forgot password?" is for people who can't sign in.
+                        .requestMatchers("/api/auth/password-reset", "/api/auth/password-reset/**")
+                                .permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // Only admins manage the team.
                         .requestMatchers(HttpMethod.POST, "/api/users", "/api/users/**")

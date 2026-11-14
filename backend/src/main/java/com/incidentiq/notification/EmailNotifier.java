@@ -52,6 +52,28 @@ public class EmailNotifier {
         }
     }
 
+    @Async(MailConfig.EXECUTOR)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void send(AccountEmail email) {
+        JavaMailSender sender = mailSender.getIfAvailable();
+        if (sender == null || !settings.enabled()) {
+            return;
+        }
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(settings.from());
+        message.setTo(email.to());
+        message.setSubject(email.subject());
+        message.setText(email.text());
+
+        try {
+            sender.send(message);
+        } catch (MailException exception) {
+            log.warn("Couldn't send the account email \"{}\": {}",
+                    email.subject(), exception.getMessage());
+        }
+    }
+
     String body(NotificationEmail email) {
         return """
                 Hi %s,

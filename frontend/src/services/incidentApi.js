@@ -69,6 +69,32 @@ export async function markAllNotificationsRead() {
 }
 
 /** Change your own password. Other sessions of your account are signed out. */
+/** Whether "Forgot password?" can be offered (the server has email set up). */
+export async function getPasswordResetAvailability() {
+    const response = await api.get('/auth/password-reset')
+    return response.data.available
+}
+
+/** Emails a reset link if the account exists. Returns the (same either way) message. */
+export async function requestPasswordReset(email) {
+    const response = await api.post('/auth/password-reset', { email })
+    return response.data.message
+}
+
+/** Resolves if the reset link can still be used; rejects (400) if not. */
+export async function checkPasswordResetToken(token) {
+    await api.post('/auth/password-reset/check', { token })
+}
+
+export async function confirmPasswordReset(token, newPassword) {
+    await api.post('/auth/password-reset/confirm', { token, newPassword })
+}
+
+/** Admin only: emails the member a link to choose their own password. */
+export async function sendPasswordResetLink(userId) {
+    await api.post(`/users/${userId}/password-reset-link`)
+}
+
 export async function changeOwnPassword(currentPassword, newPassword) {
     await api.put('/auth/password', { currentPassword, newPassword })
 }
