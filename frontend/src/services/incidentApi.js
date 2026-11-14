@@ -192,6 +192,23 @@ export async function getIncidentPage({
     return response.data
 }
 
+function reportParams({ from, to, timeZone, priority }) {
+    const params = new URLSearchParams({ from, to, timeZone })
+    if (priority) params.set('priority', priority)
+    return params
+}
+
+/** Agents and admins: the report for a date range (inclusive, in timeZone). */
+export async function getReportSummary(options) {
+    const response = await api.get(`/reports/summary?${reportParams(options)}`)
+    return response.data
+}
+
+/** Link that downloads the range's incidents as CSV (uses the session cookie). */
+export function reportCsvUrl(options) {
+    return `/api/reports/incidents.csv?${reportParams(options)}`
+}
+
 /** SLA business hours (anyone signed in can read them). */
 export async function getBusinessHours() {
     const response = await api.get('/sla/business-hours')

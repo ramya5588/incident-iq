@@ -29,7 +29,8 @@ public class IncidentExceptionHandler {
     @ExceptionHandler({
             InvalidAssigneeException.class,
             InvalidStatusChangeException.class,
-            InvalidBusinessHoursException.class})
+            InvalidBusinessHoursException.class,
+            InvalidReportException.class})
     public ResponseEntity<ApiError> handleBadRequest(
             RuntimeException exception) {
 

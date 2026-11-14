@@ -17,6 +17,7 @@ import SignInPage from './pages/SignInPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import ConfirmEmailPage from './pages/ConfirmEmailPage'
+import ReportsPage from './pages/ReportsPage'
 import AccountPage from './pages/AccountPage'
 import Sidebar from './components/Sidebar'
 import CreateIncidentModal from './components/CreateIncidentModal'
@@ -361,6 +362,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/incidents" element={<IncidentsList />} />
           <Route path="/incidents/:id" element={<IncidentDetails />} />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/team" element={<Team />} />
           <Route path="/account" element={<AccountPage />} />
           {/* A reset link opened while signed in still works; the reset

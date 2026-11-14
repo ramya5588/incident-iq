@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useCreateIncident } from '../context/createIncidentContext'
 import { useCurrentUser } from '../context/currentUserContext'
 import { initials } from '../utils/initials'
+import { canWorkIncidents } from '../utils/roles'
 import NotificationBell from './NotificationBell'
 
 const ROLE_LABELS = {
@@ -47,6 +48,11 @@ function Sidebar() {
         >
           Create incident
         </button>
+        {canWorkIncidents(currentUser) && (
+          <NavLink className={navClass} to="/reports" end>
+            Reports
+          </NavLink>
+        )}
         <NavLink className={navClass} to="/team" end>
           Team
         </NavLink>

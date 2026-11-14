@@ -77,6 +77,8 @@ public class SecurityConfig {
                                 .hasAnyRole("AGENT", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/incidents/*/triage")
                                 .hasAnyRole("AGENT", "ADMIN")
+                        // Reports are for the people who work incidents.
+                        .requestMatchers("/api/reports/**").hasAnyRole("AGENT", "ADMIN")
                         .anyRequest().authenticated())
                 .csrf(csrf -> csrf.spa())
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)

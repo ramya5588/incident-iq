@@ -10,6 +10,16 @@ changed what.
 
 - **Dashboard** with live counts (open, in progress, resolved today, SLA
   breached, AI-triaged) and the latest incidents.
+- **Reports** (agents and admins), for the last 7, 30 or 90 days or a custom
+  range, optionally for one priority:
+  - **Headline numbers:** incidents reported and resolved, median time to
+    first response and to resolve, the share of response and resolution SLAs
+    met, and how many are overdue now.
+  - **Charts and tables:** reported vs resolved per day (hover, arrow keys or
+    a table), SLA met vs missed by priority, top categories, and current open
+    work per assignee.
+  - **Download CSV** gives the range's incidents with their deadlines and
+    whether each was met.
 - **Incident list** with search (text or incident number), status and
   priority filters, and pagination. All of it is kept in the URL, so you can
   bookmark or share a search.
@@ -436,6 +446,8 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /incidents/{id}/comments` | signed in | Add a comment |
 | `GET /incidents/stats` | signed in | Dashboard counts, including `slaBreached` (`resolvedSince` optional) |
 | `GET /incidents/workload` | signed in | Active incidents per assignee |
+| `GET /reports/summary` | agent, admin | Report for `from`–`to` (inclusive dates) in `timeZone` (an IANA name, default UTC), optionally one `priority`; at most 366 days |
+| `GET /reports/incidents.csv` | agent, admin | The same range's incidents as CSV |
 | `GET /notifications` | signed in | Your 30 most recent notifications, newest first |
 | `GET /notifications/unread-count` | signed in | `{ unread }` |
 | `POST /notifications/{id}/read` | signed in | Mark one of your notifications read |
@@ -452,6 +464,27 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /users/{id}/password-reset-link` | admin | Email a member a reset link |
 | `GET /sla/business-hours` | signed in | SLA business hours: `{ enabled, timeZone, dayStart, dayEnd, workingDays, priorities, holidays }` |
 | `PUT /sla/business-hours` | admin | Save them (same shape; times as `HH:mm`, holidays as `{ date, name }`) |
+
+### How reports count
+
+- **Days** are calendar days in the viewer's time zone, sent by the browser.
+- **Reported in the range** means created between the start of the first day
+  and the end of the last.
+- **Medians:**
+  - first response covers incidents reported in the range that have been
+    picked up
+  - time to resolve covers incidents *resolved* in the range, wherever they
+    were reported
+  - both are calendar time, not business hours
+- **SLA met / missed** counts incidents reported in the range whose deadline
+  is decided. Ones still running or on hold aren't counted until they're done
+  or missed. Outcomes come from the stored deadlines, so business hours and
+  holds are already taken into account.
+- **Open work** is the current state and isn't limited to the date range; the
+  priority filter applies to it.
+- **The CSV** is UTF-8 for Excel, with times in the viewer's time zone. Text
+  that starts like a spreadsheet formula (`=`, `+`, `-`, `@`) is prefixed with
+  `'` so opening the file can't run it.
 
 ## Not built yet
 

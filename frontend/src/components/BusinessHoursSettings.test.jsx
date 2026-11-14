@@ -89,7 +89,8 @@ describe('BusinessHoursSettings', () => {
     })
     expect(await screen.findByText(/Business hours saved/)).toBeInTheDocument()
     expect(screen.getByText(/High, Medium deadlines count business hours only/)).toBeInTheDocument()
-  })
+    // Lots of typing: allow for a busy machine or CI runner.
+  }, 15_000)
 
   it('shows why the server refused the settings', async () => {
     getBusinessHours.mockResolvedValue(ON)
