@@ -308,4 +308,13 @@ class NotificationApiTest {
         clock.advance(Duration.ofHours(8));
         assertThat(breachNotifier.announceBreaches()).isEqualTo(1);
     }
+
+    @Test
+    void emailIsReportedOffWhenNoMailServerIsSetUp() throws Exception {
+        TestAuth.signInAs(alex);
+        mockMvc.perform(get("/api/notifications/email-preferences"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assigned").value(true))
+                .andExpect(jsonPath("$.emailEnabled").value(false));
+    }
 }

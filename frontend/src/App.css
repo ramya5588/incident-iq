@@ -1333,6 +1333,51 @@ a.signed-in-as.active strong {
   font-size: 13px;
 }
 
+.email-preferences fieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.email-preferences legend {
+  margin-bottom: 10px;
+  color: #344054;
+  font-weight: 700;
+}
+
+.email-preferences .checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #101828;
+  cursor: pointer;
+}
+
+.email-preferences .checkbox-row input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: #5b4ff5;
+}
+
+.email-preferences .checkbox-row small {
+  display: block;
+  color: #667085;
+}
+
+.email-preferences .email-off {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fffaeb;
+  color: #93370d;
+}
+
+.email-preferences .form-actions {
+  margin-top: 16px;
+}
+
 .password-form {
   max-width: 420px;
   margin-bottom: 0;

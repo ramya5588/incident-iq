@@ -43,6 +43,19 @@ public class UserAccount {
     @Column(name = "deactivated_at")
     private Instant deactivatedAt;
 
+    // Which notifications are also sent by email.
+    @Column(name = "email_on_assigned", nullable = false)
+    private boolean emailOnAssigned = true;
+
+    @Column(name = "email_on_commented", nullable = false)
+    private boolean emailOnCommented;
+
+    @Column(name = "email_on_status_changed", nullable = false)
+    private boolean emailOnStatusChanged;
+
+    @Column(name = "email_on_sla_breached", nullable = false)
+    private boolean emailOnSlaBreached = true;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -126,6 +139,30 @@ public class UserAccount {
     public void reactivate() {
         active = true;
         deactivatedAt = null;
+    }
+
+    public boolean isEmailOnAssigned() {
+        return emailOnAssigned;
+    }
+
+    public boolean isEmailOnCommented() {
+        return emailOnCommented;
+    }
+
+    public boolean isEmailOnStatusChanged() {
+        return emailOnStatusChanged;
+    }
+
+    public boolean isEmailOnSlaBreached() {
+        return emailOnSlaBreached;
+    }
+
+    public void setEmailPreferences(
+            boolean assigned, boolean commented, boolean statusChanged, boolean slaBreached) {
+        this.emailOnAssigned = assigned;
+        this.emailOnCommented = commented;
+        this.emailOnStatusChanged = statusChanged;
+        this.emailOnSlaBreached = slaBreached;
     }
 
     public Instant getCreatedAt() {

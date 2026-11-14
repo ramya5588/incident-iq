@@ -11,10 +11,14 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.incidentiq.auth.AppUserPrincipal;
+
+import jakarta.validation.Valid;
 
 /** The signed-in user's own notifications. There is no way to see anyone else's. */
 @RestController
@@ -50,6 +54,20 @@ public class NotificationController {
     @PostMapping("/read-all")
     public Map<String, Integer> markAllRead(@AuthenticationPrincipal AppUserPrincipal me) {
         return Map.of("marked", service.markAllRead(me.id()));
+    }
+
+    /** Which notifications you also get by email. */
+    @GetMapping("/email-preferences")
+    public EmailPreferences.Response emailPreferences(@AuthenticationPrincipal AppUserPrincipal me) {
+        return service.emailPreferences(me.id());
+    }
+
+    @PutMapping("/email-preferences")
+    public EmailPreferences.Response updateEmailPreferences(
+            @AuthenticationPrincipal AppUserPrincipal me,
+            @Valid @RequestBody EmailPreferences preferences) {
+
+        return service.updateEmailPreferences(me.id(), preferences);
     }
 
     @ExceptionHandler(NotificationNotFoundException.class)

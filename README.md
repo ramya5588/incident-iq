@@ -30,6 +30,12 @@ changed what.
   reported changes, and when an SLA deadline is missed. Missed deadlines go to
   the assignee, or to every admin if nobody is assigned. You're never notified
   about your own actions.
+- **Email notifications:** on the Account page, each person chooses which
+  notifications they also get by email, with a link to the incident. By
+  default assignments and missed deadlines are emailed; comments and status
+  changes are not. Emails are sent in the background after a change is saved,
+  so a slow or broken mail server never slows the app or loses a change (see
+  [Email](#email)).
 - **Activity timeline** on every incident: creation, status and assignee
   changes, edits, triage runs and comments, each with who did it and when.
 - **Team page** with each member's role and number of active incidents.
@@ -66,7 +72,9 @@ changed what.
 Run these from the repository root. You'll need three terminals: the backend
 and the frontend each keep running.
 
-**1. Start PostgreSQL** (on port 5433, so it won't clash with a local Postgres):
+**1. Start PostgreSQL and Mailpit.** PostgreSQL runs on port 5433, so it
+won't clash with a local Postgres. Mailpit catches the app's emails; read them
+at http://localhost:8025.
 
 ```bash
 docker compose up -d
@@ -184,8 +192,36 @@ The backend reads these environment variables:
 | `OPENAI_API_KEY` | *(none)* | Required when `AI_PROVIDER=openai`. |
 | `OPENAI_MODEL` | `gpt-6-astra` | Model used when `AI_PROVIDER=openai`. |
 
-Docker Compose reads `POSTGRES_PASSWORD` (default `incidentiq_dev`) and
-`POSTGRES_PORT` (default `5433`).
+Email settings are in [Email](#email).
+
+Docker Compose reads `POSTGRES_PASSWORD` (default `incidentiq_dev`),
+`POSTGRES_PORT` (default `5433`), and `MAILPIT_SMTP_PORT` / `MAILPIT_WEB_PORT`
+(defaults `1025` / `8025`).
+
+## Email
+
+Notification emails are sent only when both `MAIL_HOST` and `MAIL_FROM` are
+set. Otherwise notifications stay in the app, and the Account page says email
+isn't set up.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `MAIL_HOST` | *(none)* | SMTP server, e.g. your provider's `smtp.example.com`. |
+| `MAIL_PORT` | `587` | SMTP port. |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | *(none)* | SMTP sign-in. |
+| `MAIL_FROM` | *(none)* | Sender, e.g. `IncidentIQ <incidents@example.com>`. |
+| `MAIL_SMTP_AUTH` / `MAIL_STARTTLS` | `true` / `true` | Turn off for servers without sign-in or TLS. |
+| `APP_URL` | `http://localhost:5173` | Where links in emails point: the address people open the app at. |
+
+- **In development** the `dev` profile sends to Mailpit (`localhost:1025`),
+  which `docker compose up -d` starts. Nothing is delivered anywhere; open
+  http://localhost:8025 to read what was sent. If you run the frontend on
+  another port, set `APP_URL` so the links match.
+- **Sending** happens after the change is committed, on a small background
+  pool, with 10-second timeouts. A failed send is logged as a warning; the
+  in-app notification is already saved. Deactivated members get no email.
+- **The health check ignores email**, so a mail server that's down never makes
+  the app report itself unhealthy.
 
 ## Running in production
 
@@ -203,6 +239,8 @@ docker compose -f compose.prod.yaml up -d --build
 Open http://localhost:8090 (or your `HTTP_PORT`) and sign in with
 `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD`.
 
+- **Email:** set `MAIL_*` and `APP_URL` in `.env` (see [Email](#email)).
+  Leave `MAIL_HOST` empty to keep notifications in-app only.
 - **Secrets** live in `.env`, which git ignores. Start from
   [`.env.example`](.env.example). If `DB_PASSWORD` is missing, startup stops
   with a clear message.
@@ -317,6 +355,8 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `GET /notifications/unread-count` | signed in | `{ unread }` |
 | `POST /notifications/{id}/read` | signed in | Mark one of your notifications read |
 | `POST /notifications/read-all` | signed in | Mark all of yours read |
+| `GET /notifications/email-preferences` | signed in | Which notifications you get by email (`assigned`, `commented`, `statusChanged`, `slaBreached`) and `emailEnabled` |
+| `PUT /notifications/email-preferences` | signed in | Save your choices (all four, as true/false) |
 | `GET /users` | signed in | List team members |
 | `POST /users` | admin | Add a team member |
 | `PATCH /users/{id}` | admin | Edit a member's name and/or email (`{ displayName, email }`); emails stay unique |
@@ -329,7 +369,7 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 
 - Business hours for SLAs (deadlines run around the clock, except while an
   incident is on hold)
-- Email or Slack notifications, and choosing which notifications you get
+- Slack or other chat notifications, and HTML or digest emails
 - Permanently deleting accounts, members editing their own name or email, and
   password-reset emails
 - Hosting on a specific cloud provider, HTTPS certificates and automated backups

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Sidebar from '../components/Sidebar'
+import EmailPreferences from '../components/EmailPreferences'
 import { useCurrentUser } from '../context/currentUserContext'
 import { changeOwnPassword, describeApiError } from '../services/incidentApi'
 import { initials } from '../utils/initials'
@@ -59,7 +60,7 @@ function AccountPage() {
           <div>
             <p className="eyebrow">YOUR ACCOUNT</p>
             <h1>Account</h1>
-            <p>Your details and password.</p>
+            <p>Your details, email notifications and password.</p>
           </div>
         </header>
 
@@ -83,6 +84,8 @@ function AccountPage() {
             Only an admin can change your name, email or role.
           </p>
         </section>
+
+        <EmailPreferences email={currentUser.email} />
 
         <section className="content-card account-card">
           <div className="section-heading">

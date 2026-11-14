@@ -73,6 +73,18 @@ export async function changeOwnPassword(currentPassword, newPassword) {
     await api.put('/auth/password', { currentPassword, newPassword })
 }
 
+/** Which notifications you also get by email, plus `emailEnabled` (server has mail set up). */
+export async function getEmailPreferences() {
+    const response = await api.get('/notifications/email-preferences')
+    return response.data
+}
+
+/** `preferences`: { assigned, commented, statusChanged, slaBreached }. */
+export async function saveEmailPreferences(preferences) {
+    const response = await api.put('/notifications/email-preferences', preferences)
+    return response.data
+}
+
 /** Admin only. Pass only the fields to change ({ displayName, email }). */
 export async function updateUserDetails(userId, changes) {
     const response = await api.patch(`/users/${userId}`, changes)

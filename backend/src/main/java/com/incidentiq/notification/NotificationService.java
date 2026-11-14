@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.incidentiq.incident.Incident;
 import com.incidentiq.incident.IncidentStatus;
 import com.incidentiq.user.UserAccount;
+import com.incidentiq.user.UserAccountRepository;
 
 /**
  * Creates and reads in-app notifications. The notify* methods run inside the
@@ -28,11 +30,23 @@ public class NotificationService {
     static final int LIST_LIMIT = 30;
 
     private final NotificationRepository repository;
+    private final UserAccountRepository userRepository;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
+    private final EmailSettings emailSettings;
 
-    public NotificationService(NotificationRepository repository, Clock clock) {
+    public NotificationService(
+            NotificationRepository repository,
+            UserAccountRepository userRepository,
+            Clock clock,
+            ApplicationEventPublisher events,
+            EmailSettings emailSettings) {
+
         this.repository = repository;
+        this.userRepository = userRepository;
         this.clock = clock;
+        this.events = events;
+        this.emailSettings = emailSettings;
     }
 
     private Instant now() {
@@ -70,6 +84,12 @@ public class NotificationService {
         Instant now = now();
         for (UserAccount recipient : unique.values()) {
             repository.save(new Notification(recipient, incident, type, message, actor, now));
+            if (emailSettings.enabled() && wantsEmail(recipient, type)) {
+                // Sent after this transaction commits (see EmailNotifier).
+                events.publishEvent(new NotificationEmail(
+                        recipient.getId(), recipient.getEmail(), recipient.getDisplayName(),
+                        message, incident.getId()));
+            }
         }
     }
 
@@ -105,6 +125,15 @@ public class NotificationService {
         String deadline = response ? "response" : "resolution";
         send(recipients, incident, NotificationType.SLA_BREACHED,
                 label(incident) + " missed its " + deadline + " deadline", null);
+    }
+
+    static boolean wantsEmail(UserAccount user, NotificationType type) {
+        return switch (type) {
+            case ASSIGNED -> user.isEmailOnAssigned();
+            case COMMENTED -> user.isEmailOnCommented();
+            case STATUS_CHANGED -> user.isEmailOnStatusChanged();
+            case SLA_BREACHED -> user.isEmailOnSlaBreached();
+        };
     }
 
     private static String statusLabel(IncidentStatus status) {
@@ -148,5 +177,28 @@ public class NotificationService {
     @Transactional
     public int markAllRead(UUID recipientId) {
         return repository.markAllRead(recipientId, now());
+    }
+
+    // --- email preferences -------------------------------------------------
+
+    @Transactional(readOnly = true)
+    public EmailPreferences.Response emailPreferences(UUID userId) {
+        return EmailPreferences.Response.of(findUser(userId), emailSettings.enabled());
+    }
+
+    @Transactional
+    public EmailPreferences.Response updateEmailPreferences(
+            UUID userId, EmailPreferences preferences) {
+
+        UserAccount user = findUser(userId);
+        user.setEmailPreferences(
+                preferences.assigned(), preferences.commented(),
+                preferences.statusChanged(), preferences.slaBreached());
+        return EmailPreferences.Response.of(user, emailSettings.enabled());
+    }
+
+    private UserAccount findUser(UUID userId) {
+        // The signed-in user; the session filter has already checked they exist.
+        return userRepository.findById(userId).orElseThrow();
     }
 }

@@ -8,6 +8,13 @@ import { USERS, renderPage } from '../test/render'
 vi.mock('../services/incidentApi', async (importOriginal) => ({
   ...(await importOriginal()),
   changeOwnPassword: vi.fn(),
+  getEmailPreferences: vi.fn().mockResolvedValue({
+    assigned: true,
+    commented: false,
+    statusChanged: false,
+    slaBreached: true,
+    emailEnabled: true,
+  }),
   // The sidebar bell checks for notifications.
   getUnreadNotificationCount: vi.fn().mockResolvedValue(0),
 }))
@@ -31,7 +38,9 @@ describe('AccountPage', () => {
     // The sidebar also shows the name, so look inside the page itself.
     const page = within(screen.getByRole('main'))
     expect(page.getByText('Alex Agent')).toBeInTheDocument()
-    expect(page.getByText('alex@incidentiq.test')).toBeInTheDocument()
+    expect(
+      page.getByText('alex@incidentiq.test', { selector: '.account-email' })
+    ).toBeInTheDocument()
     expect(page.getByText(/Support agent: works incidents/)).toBeInTheDocument()
   })
 
