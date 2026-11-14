@@ -65,6 +65,10 @@ function describeEvent(event) {
       return `${by ? `${by}changed category` : 'Category changed'} from ${event.fromValue} to ${event.toValue}`
     case 'AI_TRIAGED':
       return by ? `${by}ran AI triage` : 'AI triage ran'
+    case 'ATTACHMENT_ADDED':
+      return `${actor} attached ${event.toValue}`
+    case 'ATTACHMENT_REMOVED':
+      return `${actor} removed the attachment ${event.toValue}`
     case 'COMMENT':
       return `${actor} commented`
     default:

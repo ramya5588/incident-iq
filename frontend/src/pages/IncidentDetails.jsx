@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import {
     describeApiError,
     getIncidentById,
@@ -9,6 +9,7 @@ import {
 } from '../services/incidentApi'
 import IncidentTimeline from '../components/IncidentTimeline'
 import IncidentEditForm from '../components/IncidentEditForm'
+import IncidentAttachments from '../components/IncidentAttachments'
 import { useCurrentUser } from '../context/currentUserContext'
 import {
     HOLD_REASONS,
@@ -56,6 +57,8 @@ function SlaRow({ label, hint, clock, startedAt, now }) {
 
 function IncidentDetails() {
     const { id } = useParams()
+    // Files that couldn't be attached while reporting (from the create form).
+    const attachmentErrors = useLocation().state?.attachmentErrors ?? []
 
     const [incident, setIncident] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -511,6 +514,24 @@ function IncidentDetails() {
                     </p>
                 </section>
             )}
+
+            {attachmentErrors.length > 0 && (
+                <div className="error-message attachment-errors" role="alert">
+                    <p>The incident was created, but these files weren't attached:</p>
+                    <ul>
+                        {attachmentErrors.map((message) => (
+                            <li key={message}>{message}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            <IncidentAttachments
+                incidentId={id}
+                canAttach={canWork || incident.createdById === currentUser?.id}
+                currentUser={currentUser}
+                onChanged={refreshTimeline}
+            />
 
             <IncidentTimeline
                 incidentId={id}

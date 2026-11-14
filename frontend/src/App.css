@@ -1148,6 +1148,122 @@ a.nav-item {
   font-size: 14px;
 }
 
+/* Attachments */
+.attachments-section {
+  margin-top: 24px;
+}
+
+.attachment-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.attachment-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid #eaecf0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.attachment-thumb img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #f2f4f7;
+}
+
+.attachment-icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border-radius: 8px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.attachment-meta {
+  display: grid;
+  flex: 1 1 200px;
+  min-width: 0;
+  gap: 2px;
+}
+
+.attachment-meta a {
+  overflow: hidden;
+  color: #4f46e5;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-meta small {
+  color: #667085;
+}
+
+.attachment-confirm {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.attachment-drop {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border: 2px dashed #d0d5dd;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.attachment-drop.dragging {
+  border-color: #4f46e5;
+  background: #eef2ff;
+}
+
+.attachment-drop label {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  color: #344054;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.attachment-drop small {
+  color: #667085;
+}
+
+.attachment-errors {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.attachment-errors p {
+  margin: 0 0 4px;
+}
+
+.chosen-files {
+  margin: -6px 0 0;
+  padding-left: 18px;
+  color: #344054;
+  font-size: 14px;
+}
+
+.chosen-files small {
+  color: #667085;
+}
+
 /* Reports. Series colours from the validated reference palette:
    slot 1 blue, slot 2 orange (CVD-safe pair). */
 .report-filters {

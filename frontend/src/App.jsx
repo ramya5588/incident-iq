@@ -335,9 +335,9 @@ function App() {
     [openCreateIncident]
   )
 
-  function handleCreated(incident) {
+  function handleCreated(incident, attachmentErrors = []) {
     setShowCreateIncident(false)
-    navigate(`/incidents/${incident.id}`)
+    navigate(`/incidents/${incident.id}`, { state: { attachmentErrors } })
   }
 
   if (currentUser === undefined) {

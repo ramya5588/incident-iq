@@ -16,6 +16,7 @@ vi.mock('../services/incidentApi', async (importOriginal) => ({
   getIncidentEvents: vi.fn(),
   updateIncidentStatus: vi.fn(),
   addIncidentComment: vi.fn(),
+  listAttachments: vi.fn().mockResolvedValue([]),
 }))
 
 const INCIDENT = {

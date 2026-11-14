@@ -12,7 +12,8 @@ public class IncidentExceptionHandler {
 
     @ExceptionHandler({
             UserNotFoundException.class,
-            IncidentNotFoundException.class
+            IncidentNotFoundException.class,
+            AttachmentNotFoundException.class
     })
     public ResponseEntity<ApiError> handleNotFound(
             RuntimeException exception) {
@@ -30,7 +31,8 @@ public class IncidentExceptionHandler {
             InvalidAssigneeException.class,
             InvalidStatusChangeException.class,
             InvalidBusinessHoursException.class,
-            InvalidReportException.class})
+            InvalidReportException.class,
+            InvalidAttachmentException.class})
     public ResponseEntity<ApiError> handleBadRequest(
             RuntimeException exception) {
 
@@ -41,6 +43,20 @@ public class IncidentExceptionHandler {
                 exception.getMessage());
 
         return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(AttachmentForbiddenException.class)
+    public ResponseEntity<ApiError> handleForbidden(AttachmentForbiddenException exception) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(
+                Instant.now(), HttpStatus.FORBIDDEN.value(), "Forbidden", exception.getMessage()));
+    }
+
+    /** Over the upload size limit (rejected before reaching a controller). */
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleTooLarge(RuntimeException exception) {
+        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(new ApiError(
+                Instant.now(), HttpStatus.CONTENT_TOO_LARGE.value(), "Content Too Large",
+                "Files can be at most 5 MB."));
     }
 
     public record ApiError(

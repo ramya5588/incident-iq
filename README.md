@@ -25,6 +25,10 @@ changed what.
   bookmark or share a search.
 - **Incident page:** edit title, description, priority and category; change
   status; assign an agent; run AI triage.
+- **Attachments:** add screenshots, PDFs and text or log files when reporting
+  an incident or later on its page, up to 5 MB each and 10 per incident.
+  Images show as thumbnails; other files download. Adding and removing files
+  shows on the timeline (see [Attachments](#attachments)).
 - **On hold:** put an incident on hold while you wait on the reporter, a third
   party or a scheduled time. You pick a reason and can add a note, and both
   show on the timeline. The resolution clock pauses while it's on hold. If
@@ -349,8 +353,11 @@ Open http://localhost:8090 (or your `HTTP_PORT`) and sign in with
   order: the database, then the backend, then the frontend. nginx adds security
   headers (CSP, `X-Frame-Options`, `nosniff`), caches the hashed assets, and
   serves `index.html` for any app route so page reloads work.
-- **Data** is in the `db-data` Docker volume. Back it up with your usual
-  PostgreSQL tools (`pg_dump`). There's no built-in backup.
+- **Data** is in the `db-data` Docker volume, attachments included. Back it
+  up with your usual PostgreSQL tools (`pg_dump`). There's no built-in backup.
+- **Uploads:** nginx accepts request bodies up to 6 MB (`client_max_body_size`
+  in [`nginx.conf`](frontend/nginx.conf)), enough for one 5 MB attachment.
+  Any proxy in front of the stack must allow at least that too.
 - **Updating:** `git pull`, then rerun the same `up -d --build`. Migrations run
   on startup.
 - **Stopping:** `docker compose -f compose.prod.yaml down`. Add `-v` only if
@@ -444,6 +451,10 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `POST /incidents/{id}/triage` | agent, admin | Run AI triage |
 | `GET /incidents/{id}/events` | signed in | Activity timeline, newest first |
 | `POST /incidents/{id}/comments` | signed in | Add a comment |
+| `GET /incidents/{id}/attachments` | signed in | The incident's attachments (names, sizes, who added them; no file data) |
+| `POST /incidents/{id}/attachments` | signed in | Attach one file (multipart field `file`); reporters only on their own incidents |
+| `GET /incidents/{id}/attachments/{attachmentId}` | signed in | The file: images inline, everything else as a download |
+| `DELETE /incidents/{id}/attachments/{attachmentId}` | signed in | Remove it (whoever added it, or an admin) |
 | `GET /incidents/stats` | signed in | Dashboard counts, including `slaBreached` (`resolvedSince` optional) |
 | `GET /incidents/workload` | signed in | Active incidents per assignee |
 | `GET /reports/summary` | agent, admin | Report for `from`–`to` (inclusive dates) in `timeZone` (an IANA name, default UTC), optionally one `priority`; at most 366 days |
@@ -485,6 +496,27 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 - **The CSV** is UTF-8 for Excel, with times in the viewer's time zone. Text
   that starts like a spreadsheet formula (`=`, `+`, `-`, `@`) is prefixed with
   `'` so opening the file can't run it.
+
+## Attachments
+
+- **Who:** anyone signed in can see an incident's attachments, as they can
+  the incident. Agents and admins can attach to any incident; reporters only to
+  incidents they reported. Whoever added a file, or an admin, can remove it.
+- **What:** images (PNG, JPEG, GIF, WebP), PDFs, and text files (`.txt`,
+  `.log`, `.csv`, `.json`); 5 MB each, 10 per incident.
+- **Type checks:** the type comes from the file's first bytes, not its name or
+  the type the browser claims. A file named `.png` that isn't a PNG is refused.
+  Text files must be clean UTF-8, and they're always served as plain text.
+  HTML, SVG and anything else are refused, so nothing uploaded can run as a
+  page in the app.
+- **Serving:** images are served inline (for thumbnails) and everything else
+  as a download. Every file is served with a locked-down
+  Content-Security-Policy (`sandbox`, no scripts) and `nosniff`. File names are
+  cleaned of folders and control characters.
+- **Storage:** files are kept in PostgreSQL, so backups and the Docker setup
+  need nothing extra. That's fine for screenshots and logs. If attachments
+  grow into many gigabytes, moving them to object storage (S3 or similar)
+  would keep the database small.
 
 ## Not built yet
 

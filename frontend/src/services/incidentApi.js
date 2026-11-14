@@ -192,6 +192,31 @@ export async function getIncidentPage({
     return response.data
 }
 
+export async function listAttachments(incidentId) {
+    const response = await api.get(`/incidents/${incidentId}/attachments`)
+    return response.data
+}
+
+/** Uploads one file; returns the new attachment. */
+export async function uploadAttachment(incidentId, file) {
+    const form = new FormData()
+    form.append('file', file)
+    // Multipart, not the JSON default; the browser adds the boundary.
+    const response = await api.post(`/incidents/${incidentId}/attachments`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+}
+
+export async function deleteAttachment(incidentId, attachmentId) {
+    await api.delete(`/incidents/${incidentId}/attachments/${attachmentId}`)
+}
+
+/** Where the file itself is served (images inline, others as downloads). */
+export function attachmentUrl(incidentId, attachmentId) {
+    return `/api/incidents/${incidentId}/attachments/${attachmentId}`
+}
+
 function reportParams({ from, to, timeZone, priority }) {
     const params = new URLSearchParams({ from, to, timeZone })
     if (priority) params.set('priority', priority)

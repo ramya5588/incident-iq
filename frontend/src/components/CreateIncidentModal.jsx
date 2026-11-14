@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react'
-import { createIncident, describeApiError } from '../services/incidentApi'
+import {
+  createIncident,
+  describeApiError,
+  uploadAttachment,
+} from '../services/incidentApi'
+import {
+  ATTACHMENT_ACCEPT,
+  MAX_ATTACHMENTS,
+  attachmentProblem,
+  formatBytes,
+} from '../utils/attachments'
 import { useCurrentUser } from '../context/currentUserContext'
 
 const EMPTY_INCIDENT = {
@@ -14,6 +24,10 @@ function CreateIncidentModal({ onClose, onCreated }) {
   const { currentUser } = useCurrentUser()
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
+  const [files, setFiles] = useState([])
+  const [progress, setProgress] = useState('')
+  const fileProblems = files.map(attachmentProblem).filter(Boolean)
+  const tooMany = files.length > MAX_ATTACHMENTS
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -36,7 +50,20 @@ function CreateIncidentModal({ onClose, onCreated }) {
     try {
       // The backend records the signed-in user as the reporter.
       const created = await createIncident(incident)
-      onCreated(created)
+
+      // Then the files, one at a time; any that fail are reported on the
+      // incident page rather than losing the incident.
+      const failed = []
+      for (const file of files) {
+        setProgress(`Attaching ${file.name}…`)
+        try {
+          await uploadAttachment(created.id, file)
+        } catch (uploadError) {
+          console.error(uploadError)
+          failed.push(`${file.name}: ${describeApiError(uploadError, 'Unable to attach it.')}`)
+        }
+      }
+      onCreated(created, failed)
     } catch (requestError) {
       console.error(requestError)
       setFormError(
@@ -133,6 +160,36 @@ function CreateIncidentModal({ onClose, onCreated }) {
             </label>
           </div>
 
+          <label>
+            Attachments (optional)
+            <input
+              type="file"
+              multiple
+              accept={ATTACHMENT_ACCEPT}
+              onChange={(event) => setFiles([...event.target.files])}
+              disabled={submitting}
+            />
+          </label>
+          {files.length > 0 && (
+            <ul className="chosen-files">
+              {files.map((file) => (
+                <li key={file.name + file.size}>
+                  {file.name} <small>({formatBytes(file.size)})</small>
+                </li>
+              ))}
+            </ul>
+          )}
+          {fileProblems.map((problem) => (
+            <p key={problem} className="error-message">
+              {problem}
+            </p>
+          ))}
+          {tooMany && (
+            <p className="error-message">
+              Choose at most {MAX_ATTACHMENTS} files.
+            </p>
+          )}
+
           <p className="reported-as">
             Reported as <strong>{currentUser?.displayName}</strong>
           </p>
@@ -152,9 +209,9 @@ function CreateIncidentModal({ onClose, onCreated }) {
             <button
               type="submit"
               className="primary-button"
-              disabled={submitting}
+              disabled={submitting || fileProblems.length > 0 || tooMany}
             >
-              {submitting ? 'Creating...' : 'Create incident'}
+              {submitting ? progress || 'Creating...' : 'Create incident'}
             </button>
           </div>
         </form>

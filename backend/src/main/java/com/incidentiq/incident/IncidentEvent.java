@@ -135,6 +135,14 @@ public class IncidentEvent {
                 null, null, null, actor);
     }
 
+    /** Attachment added or removed; stores the file name (cut to fit). */
+    public static IncidentEvent attachment(
+            Incident incident, IncidentEventType type, String fileName, UserAccount actor) {
+
+        String name = fileName.length() > 200 ? fileName.substring(0, 199) + "…" : fileName;
+        return new IncidentEvent(incident, type, null, name, null, actor);
+    }
+
     public static IncidentEvent comment(
             Incident incident, UserAccount author, String body) {
 
