@@ -37,7 +37,7 @@ class IncidentTest {
     void resolvingSetsResolvedAt() {
         Instant before = Instant.now();
 
-        incident.updateStatus(IncidentStatus.RESOLVED, Instant.now());
+        incident.updateStatus(IncidentStatus.RESOLVED, Instant.now(), SlaCalendar.ALWAYS);
 
         assertThat(incident.getStatus()).isEqualTo(IncidentStatus.RESOLVED);
         assertThat(incident.getResolvedAt()).isNotNull();
@@ -46,9 +46,9 @@ class IncidentTest {
 
     @Test
     void reopeningClearsResolvedAt() {
-        incident.updateStatus(IncidentStatus.RESOLVED, Instant.now());
+        incident.updateStatus(IncidentStatus.RESOLVED, Instant.now(), SlaCalendar.ALWAYS);
 
-        incident.updateStatus(IncidentStatus.OPEN, Instant.now());
+        incident.updateStatus(IncidentStatus.OPEN, Instant.now(), SlaCalendar.ALWAYS);
 
         assertThat(incident.getStatus()).isEqualTo(IncidentStatus.OPEN);
         assertThat(incident.getResolvedAt()).isNull();
@@ -56,19 +56,19 @@ class IncidentTest {
 
     @Test
     void movingBackToInProgressClearsResolvedAt() {
-        incident.updateStatus(IncidentStatus.RESOLVED, Instant.now());
+        incident.updateStatus(IncidentStatus.RESOLVED, Instant.now(), SlaCalendar.ALWAYS);
 
-        incident.updateStatus(IncidentStatus.IN_PROGRESS, Instant.now());
+        incident.updateStatus(IncidentStatus.IN_PROGRESS, Instant.now(), SlaCalendar.ALWAYS);
 
         assertThat(incident.getResolvedAt()).isNull();
     }
 
     @Test
     void closingAfterResolvingKeepsResolvedAt() {
-        incident.updateStatus(IncidentStatus.RESOLVED, Instant.now());
+        incident.updateStatus(IncidentStatus.RESOLVED, Instant.now(), SlaCalendar.ALWAYS);
         Instant resolvedAt = incident.getResolvedAt();
 
-        incident.updateStatus(IncidentStatus.CLOSED, Instant.now());
+        incident.updateStatus(IncidentStatus.CLOSED, Instant.now(), SlaCalendar.ALWAYS);
 
         assertThat(incident.getStatus()).isEqualTo(IncidentStatus.CLOSED);
         assertThat(incident.getResolvedAt()).isEqualTo(resolvedAt);
@@ -89,18 +89,18 @@ class IncidentTest {
     void firstResponseIsWhenFirstAssignedOrMovedOutOfOpen() {
         Instant reported = Instant.parse("2026-01-05T09:00:00Z");
         incident.startSla(reported, new SlaProperties.Target(
-                java.time.Duration.ofHours(1), java.time.Duration.ofHours(8)));
+                java.time.Duration.ofHours(1), java.time.Duration.ofHours(8)), SlaCalendar.ALWAYS);
         assertThat(incident.getRespondBy()).isEqualTo(reported.plusSeconds(3600));
         assertThat(incident.getResolveBy()).isEqualTo(reported.plusSeconds(8 * 3600));
 
         incident.assignTo(null, reported.plusSeconds(60));
         assertThat(incident.getFirstRespondedAt()).isNull();
 
-        incident.updateStatus(IncidentStatus.IN_PROGRESS, reported.plusSeconds(600));
+        incident.updateStatus(IncidentStatus.IN_PROGRESS, reported.plusSeconds(600), SlaCalendar.ALWAYS);
         assertThat(incident.getFirstRespondedAt()).isEqualTo(reported.plusSeconds(600));
 
         // Later changes never move the first response.
-        incident.updateStatus(IncidentStatus.OPEN, reported.plusSeconds(900));
+        incident.updateStatus(IncidentStatus.OPEN, reported.plusSeconds(900), SlaCalendar.ALWAYS);
         incident.assignTo(
                 new UserAccount("a@incidentiq.test", "A", UserRole.AGENT),
                 reported.plusSeconds(1200));
@@ -111,10 +111,10 @@ class IncidentTest {
     void changingPriorityRecalculatesDeadlinesFromReportedTime() {
         Instant reported = Instant.parse("2026-01-05T09:00:00Z");
         incident.startSla(reported, new SlaProperties.Target(
-                java.time.Duration.ofHours(1), java.time.Duration.ofHours(8)));
+                java.time.Duration.ofHours(1), java.time.Duration.ofHours(8)), SlaCalendar.ALWAYS);
 
         incident.changePriority(IncidentPriority.CRITICAL, new SlaProperties.Target(
-                java.time.Duration.ofMinutes(15), java.time.Duration.ofHours(4)));
+                java.time.Duration.ofMinutes(15), java.time.Duration.ofHours(4)), SlaCalendar.ALWAYS);
 
         assertThat(incident.getPriority()).isEqualTo(IncidentPriority.CRITICAL);
         assertThat(incident.getRespondBy()).isEqualTo(reported.plusSeconds(15 * 60));

@@ -32,7 +32,10 @@ function SlaRow({ label, hint, clock, startedAt, now }) {
         <div className="sla-row">
             <dt>
                 {label}
-                <small>{hint}</small>
+                <small>
+                    {hint}
+                    {clock.businessHours ? ' · business hours' : ''}
+                </small>
             </dt>
             <dd>
                 <span className="sla-due">

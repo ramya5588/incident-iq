@@ -23,7 +23,8 @@ changed what.
 - **SLA tracking:** each incident gets a respond-by and a resolve-by deadline
   from its priority. Each one shows as on track, at risk, breached, met or
   paused on the list and the incident page, and there's an "Overdue only" filter (see
-  [SLA targets](#sla-targets)).
+  [SLA targets](#sla-targets)). Admins can make chosen priorities count
+  business hours only, with holidays (see [Business hours](#business-hours)).
 - **Notifications:** a bell in the sidebar with an unread count. You're
   notified when an incident is assigned to you, when someone comments on an
   incident you reported or are assigned, when the status of an incident you
@@ -167,7 +168,8 @@ deactivate yourself.
   **Resolve** means its status is set to Resolved; closing it without
   resolving also counts.
 - Deadlines are measured from when the incident was reported and run around
-  the clock. Changing the priority recalculates both deadlines.
+  the clock, unless [business hours](#business-hours) are on for that
+  priority. Changing the priority recalculates both deadlines.
 - **On hold pauses the resolve deadline:** time spent on hold is added to it
   when work resumes, and every hold counts. Paused incidents aren't overdue
   and don't trigger missed-deadline alerts. A deadline that was already
@@ -184,6 +186,32 @@ deactivate yourself.
   [`application.properties`](backend/src/main/resources/application.properties).
   New targets apply to new incidents and to priority changes; deadlines that
   already exist stay as they are.
+
+### Business hours
+
+Admins set these at the bottom of the **Team** page; everyone else sees a
+one-line summary there. They're off until an admin turns them on.
+
+- **What counts:** working hours (for example 09:00–17:00) on chosen working
+  days in one time zone, except listed holidays. Local times follow the time
+  zone's daylight saving rules.
+- **Per priority:** pick which priorities use business hours. The others keep
+  running around the clock. Critical, for example, is often left around the
+  clock.
+- **Example:** a High incident reported at 16:30 on a Friday with
+  Mon–Fri 09:00–17:00 must be picked up by 09:30 on Monday (30 minutes on
+  Friday, 30 on Monday), or Tuesday if Monday is a holiday.
+- **On hold** adds only the business time it was held, so a weekend on hold
+  adds nothing.
+- **At risk** uses business time too: a quarter or less of the counted time
+  left. Badges show "time left (business hours)" as of when the page loaded,
+  and the incident page marks those deadlines "business hours".
+- **Overdue and alerts** don't change: deadlines are stored as exact times, so
+  the overdue filter, dashboard count and missed-deadline alerts work as
+  before.
+- **Changes** apply to deadlines set from then on (new incidents, priority
+  changes, coming off hold). Existing deadlines stay as they are, as with
+  target changes.
 
 ## Configuration
 
@@ -422,11 +450,11 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `PATCH /users/{id}/role` | admin | Change a member's role (`{ role }`); the last admin can't be demoted |
 | `PUT /users/{id}/password` | admin | Reset a member's password (`{ newPassword }`) |
 | `POST /users/{id}/password-reset-link` | admin | Email a member a reset link |
+| `GET /sla/business-hours` | signed in | SLA business hours: `{ enabled, timeZone, dayStart, dayEnd, workingDays, priorities, holidays }` |
+| `PUT /sla/business-hours` | admin | Save them (same shape; times as `HH:mm`, holidays as `{ date, name }`) |
 
 ## Not built yet
 
-- Business hours for SLAs (deadlines run around the clock, except while an
-  incident is on hold)
 - Slack or other chat notifications, and HTML or digest emails
 - Permanently deleting accounts
 - Hosting on a specific cloud provider, HTTPS certificates and automated backups

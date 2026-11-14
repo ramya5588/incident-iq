@@ -86,3 +86,26 @@ describe('currentClock', () => {
     expect(currentClock({})).toBeNull()
   })
 })
+
+describe('business-hours deadlines', () => {
+  const business = {
+    dueAt: '2026-01-12T09:30:00Z',
+    completedAt: null,
+    state: 'ON_TRACK',
+    businessHours: true,
+    countedSecondsLeft: 1800,
+  }
+
+  it("keeps the server's state until the deadline passes", () => {
+    // Saturday: a wall clock would call this at risk; only working time counts.
+    expect(liveState(business, START, at('2026-01-10T12:00:00Z'))).toBe('ON_TRACK')
+    expect(liveState(business, START, at('2026-01-12T09:30:00Z'))).toBe('BREACHED')
+  })
+
+  it('shows the working time left', () => {
+    expect(describeClock(business, 'ON_TRACK', at('2026-01-10T12:00:00Z'))).toBe(
+      '30m left (business hours)'
+    )
+    expect(describeClock(business, 'BREACHED', at('2026-01-12T10:00:00Z'))).toBe('Overdue 30m')
+  })
+})

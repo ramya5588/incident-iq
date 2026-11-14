@@ -25,44 +25,59 @@ public record IncidentSla(Clock response, Clock resolution) {
     /**
      * @param dueAt the deadline
      * @param completedAt when it was done, or null if not yet
+     * @param businessHours true when only business hours count toward it
+     * @param countedSecondsLeft counted time left (business hours, or all
+     *        time), or null once it's done or missed
      */
-    public record Clock(Instant dueAt, Instant completedAt, State state) {
+    public record Clock(
+            Instant dueAt,
+            Instant completedAt,
+            State state,
+            boolean businessHours,
+            Long countedSecondsLeft) {
 
-        static Clock of(Instant startedAt, Instant dueAt, Instant completedAt, Instant now) {
+        static Clock of(
+                Instant startedAt, Instant dueAt, Instant completedAt, Instant now,
+                SlaCalendar calendar) {
+            boolean business = calendar.businessHours();
             if (completedAt != null) {
                 return new Clock(dueAt, completedAt,
-                        completedAt.isAfter(dueAt) ? State.BREACHED : State.MET);
+                        completedAt.isAfter(dueAt) ? State.BREACHED : State.MET, business, null);
             }
             if (!now.isBefore(dueAt)) {
-                return new Clock(dueAt, null, State.BREACHED);
+                return new Clock(dueAt, null, State.BREACHED, business, null);
             }
 
-            long total = dueAt.toEpochMilli() - startedAt.toEpochMilli();
-            long left = dueAt.toEpochMilli() - now.toEpochMilli();
-            return new Clock(dueAt, null, left * 4 <= total ? State.AT_RISK : State.ON_TRACK);
+            // At risk once a quarter or less of the counted time is left.
+            Duration total = calendar.countedTime(startedAt, dueAt);
+            Duration left = calendar.countedTime(now, dueAt);
+            State state = left.multipliedBy(4).compareTo(total) <= 0 ? State.AT_RISK : State.ON_TRACK;
+            return new Clock(dueAt, null, state, business, left.toSeconds());
         }
     }
 
-    public static IncidentSla of(Incident incident, Instant now) {
+    public static IncidentSla of(Incident incident, Instant now, SlaCalendar calendar) {
         return new IncidentSla(
                 Clock.of(incident.getCreatedAt(), incident.getRespondBy(),
-                        incident.getFirstRespondedAt(), now),
-                resolution(incident, now));
+                        incident.getFirstRespondedAt(), now, calendar),
+                resolution(incident, now, calendar));
     }
 
-    private static Clock resolution(Incident incident, Instant now) {
+    private static Clock resolution(Incident incident, Instant now, SlaCalendar calendar) {
         Instant heldSince = incident.getOnHoldSince();
+        boolean business = calendar.businessHours();
         if (heldSince == null) {
             return Clock.of(incident.getCreatedAt(), incident.getResolveBy(),
-                    resolutionCompletedAt(incident), now);
+                    resolutionCompletedAt(incident), now, calendar);
         }
         // Missed before the hold began: a hold doesn't undo that.
         if (!incident.getResolveBy().isAfter(heldSince)) {
-            return new Clock(incident.getResolveBy(), null, State.BREACHED);
+            return new Clock(incident.getResolveBy(), null, State.BREACHED, business, null);
         }
-        // The deadline if work resumed right now.
-        Duration held = now.isAfter(heldSince) ? Duration.between(heldSince, now) : Duration.ZERO;
-        return new Clock(incident.getResolveBy().plus(held), null, State.PAUSED);
+        // The deadline if work resumed right now; the time left doesn't change while paused.
+        Duration held = calendar.countedTime(heldSince, now);
+        return new Clock(calendar.add(incident.getResolveBy(), held), null, State.PAUSED,
+                business, calendar.countedTime(heldSince, incident.getResolveBy()).toSeconds());
     }
 
     /** Resolved time; an incident closed without resolving counts as done when closed. */

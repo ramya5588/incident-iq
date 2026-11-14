@@ -68,6 +68,8 @@ public class SecurityConfig {
                         // and resetting passwords.
                         .requestMatchers(HttpMethod.PATCH, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/users/**").hasRole("ADMIN")
+                        // ...and set SLA business hours.
+                        .requestMatchers(HttpMethod.PUT, "/api/sla/**").hasRole("ADMIN")
                         // Working an incident (edit, status, assignee, triage)
                         // is for agents and admins. Anyone signed in can
                         // view, report and comment.

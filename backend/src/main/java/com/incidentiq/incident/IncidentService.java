@@ -38,6 +38,7 @@ public class IncidentService {
     private final SlaProperties slaProperties;
     private final Clock clock;
     private final NotificationService notifications;
+    private final BusinessHoursService businessHours;
 
     public IncidentService(
             IncidentRepository incidentRepository,
@@ -47,7 +48,8 @@ public class IncidentService {
             IncidentEventRepository eventRepository,
             SlaProperties slaProperties,
             Clock clock,
-            NotificationService notifications) {
+            NotificationService notifications,
+            BusinessHoursService businessHours) {
 
         this.incidentRepository = incidentRepository;
         this.userRepository = userRepository;
@@ -57,6 +59,7 @@ public class IncidentService {
         this.slaProperties = slaProperties;
         this.clock = clock;
         this.notifications = notifications;
+        this.businessHours = businessHours;
     }
 
     /** Current time at the database's precision (microseconds). */
@@ -65,7 +68,17 @@ public class IncidentService {
     }
 
     private IncidentResponse toResponse(Incident incident) {
-        return IncidentResponse.from(incident, IncidentSla.of(incident, now()));
+        return toResponse(incident, businessHours.calendars());
+    }
+
+    /** For lists: load the calendars once, not per incident. */
+    private IncidentResponse toResponse(Incident incident, SlaCalendars calendars) {
+        SlaCalendar calendar = calendars.forPriority(incident.getPriority());
+        return IncidentResponse.from(incident, IncidentSla.of(incident, now(), calendar));
+    }
+
+    private SlaCalendar calendarFor(Incident incident) {
+        return businessHours.calendars().forPriority(incident.getPriority());
     }
 
     private Incident findIncident(UUID incidentId) {
@@ -105,7 +118,8 @@ public class IncidentService {
                 priority,
                 category,
                 creator);
-        incident.startSla(now(), slaProperties.targetFor(priority));
+        incident.startSla(now(), slaProperties.targetFor(priority),
+                businessHours.calendars().forPriority(priority));
 
         Incident savedIncident = incidentRepository.saveAndFlush(incident);
         eventRepository.save(IncidentEvent.created(savedIncident, creator));
@@ -161,7 +175,7 @@ public class IncidentService {
                 }
             }
         } else if (previous != next) {
-            incident.updateStatus(next, now());
+            incident.updateStatus(next, now(), calendarFor(incident));
             eventRepository.save(IncidentEvent.statusChanged(incident, previous, next, actor));
             notifications.notifyStatusChanged(incident, next, actor);
         }
@@ -209,7 +223,8 @@ public class IncidentService {
                     incident.getPriority().name(), request.priority().name(),
                     actor));
             incident.changePriority(
-                    request.priority(), slaProperties.targetFor(request.priority()));
+                    request.priority(), slaProperties.targetFor(request.priority()),
+                    businessHours.calendars().forPriority(request.priority()));
         }
 
         if (request.category() != null) {
@@ -313,7 +328,7 @@ public class IncidentService {
                 && incident.getHoldReason() == HoldReason.WAITING_ON_REPORTER
                 && incident.getCreatedBy().getId().equals(author.getId());
         if (resumed) {
-            incident.updateStatus(IncidentStatus.IN_PROGRESS, now());
+            incident.updateStatus(IncidentStatus.IN_PROGRESS, now(), calendarFor(incident));
             eventRepository.save(IncidentEvent.statusChanged(
                     incident, IncidentStatus.ON_HOLD, IncidentStatus.IN_PROGRESS,
                     "Resumed when the reporter replied", author));
@@ -389,6 +404,8 @@ public class IncidentService {
             filter = filter.and(IncidentSpecifications.overdue(now()));
         }
 
-        return incidentRepository.findAll(filter, pageable).map(this::toResponse);
+        SlaCalendars calendars = businessHours.calendars();
+        return incidentRepository.findAll(filter, pageable)
+                .map(incident -> toResponse(incident, calendars));
     }
 }

@@ -26,7 +26,10 @@ public class IncidentExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
-    @ExceptionHandler({InvalidAssigneeException.class, InvalidStatusChangeException.class})
+    @ExceptionHandler({
+            InvalidAssigneeException.class,
+            InvalidStatusChangeException.class,
+            InvalidBusinessHoursException.class})
     public ResponseEntity<ApiError> handleBadRequest(
             RuntimeException exception) {
 

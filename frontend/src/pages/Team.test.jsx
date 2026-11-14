@@ -21,6 +21,15 @@ vi.mock('../services/incidentApi', async (importOriginal) => ({
   updateUserDetails: vi.fn(),
   getUnreadNotificationCount: vi.fn().mockResolvedValue(0),
   getPasswordResetAvailability: vi.fn().mockResolvedValue(true),
+  getBusinessHours: vi.fn().mockResolvedValue({
+    enabled: false,
+    timeZone: 'UTC',
+    dayStart: '09:00',
+    dayEnd: '17:00',
+    workingDays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'],
+    priorities: ['LOW', 'MEDIUM', 'HIGH'],
+    holidays: [],
+  }),
   sendPasswordResetLink: vi.fn(),
 }))
 

@@ -1148,6 +1148,111 @@ a.nav-item {
   font-size: 14px;
 }
 
+.business-hours-card {
+  margin-top: 22px;
+}
+
+.business-hours-form {
+  display: grid;
+  gap: 16px;
+}
+
+.business-hours-form fieldset {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.business-hours-form fieldset:disabled {
+  opacity: 0.55;
+}
+
+.business-hours-form .checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #101828;
+  cursor: pointer;
+}
+
+.business-hours-form .checkbox-row small,
+.choice-group small,
+.holidays small {
+  display: block;
+  color: #667085;
+  font-size: 13px;
+}
+
+.business-hours-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.business-hours-row label {
+  display: grid;
+  gap: 4px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.business-hours-row input,
+.holiday-row input {
+  padding: 8px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.business-hours-row label:first-child input {
+  min-width: 220px;
+}
+
+.choice-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.choice-group > span,
+.holidays > span {
+  min-width: 100px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.choice-group small {
+  flex-basis: 100%;
+}
+
+.chip-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.holidays {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.holiday-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .reset-email {
   display: flex;
   flex-wrap: wrap;

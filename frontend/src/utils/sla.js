@@ -17,6 +17,11 @@ export function liveState(clock, startedAt, now) {
   if (!clock) return null
   // On hold: the backend moves the deadline; nothing ticks down meanwhile.
   if (clock.completedAt || clock.state === 'PAUSED') return clock.state
+  // Business hours: only the server knows which time counts, so keep its
+  // state until the deadline itself passes.
+  if (clock.businessHours) {
+    return now >= Date.parse(clock.dueAt) ? 'BREACHED' : clock.state
+  }
 
   const due = Date.parse(clock.dueAt)
   if (now >= due) return 'BREACHED'
@@ -50,9 +55,13 @@ export function describeClock(clock, state, now) {
     return state === 'MET' ? 'Met' : `Missed by ${formatDuration(completed - due)}`
   }
 
-  return now >= due
-    ? `Overdue ${formatDuration(now - due)}`
-    : `${formatDuration(due - now)} left`
+  if (now >= due) return `Overdue ${formatDuration(now - due)}`
+
+  // Business hours: working time left as of when the page loaded.
+  if (clock.businessHours && clock.countedSecondsLeft != null) {
+    return `${formatDuration(clock.countedSecondsLeft * 1000)} left (business hours)`
+  }
+  return `${formatDuration(due - now)} left`
 }
 
 /**

@@ -192,6 +192,18 @@ export async function getIncidentPage({
     return response.data
 }
 
+/** SLA business hours (anyone signed in can read them). */
+export async function getBusinessHours() {
+    const response = await api.get('/sla/business-hours')
+    return response.data
+}
+
+/** Admin only. Takes and returns the same shape as getBusinessHours. */
+export async function saveBusinessHours(settings) {
+    const response = await api.put('/sla/business-hours', settings)
+    return response.data
+}
+
 export async function getIncidentStats() {
     const startOfToday = new Date()
     startOfToday.setHours(0, 0, 0, 0)

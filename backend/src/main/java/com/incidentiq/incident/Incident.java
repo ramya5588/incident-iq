@@ -113,7 +113,11 @@ public class Incident {
     @Column(name = "on_hold_since")
     private Instant onHoldSince;
 
-    /** Time spent in earlier, finished holds; added to the resolution deadline. */
+    /**
+     * Time spent in earlier, finished holds, counted by the incident's SLA
+     * calendar (so a weekend on hold adds nothing under business hours).
+     * Added to the resolution deadline.
+     */
     @Column(name = "sla_paused_micros", nullable = false)
     private long slaPausedMicros;
 
@@ -139,15 +143,16 @@ public class Incident {
      * Sets the reported time and the SLA deadlines. Call once, before the
      * incident is first saved.
      */
-    public void startSla(Instant reportedAt, SlaProperties.Target target) {
+    public void startSla(Instant reportedAt, SlaProperties.Target target, SlaCalendar calendar) {
         this.createdAt = reportedAt;
         this.updatedAt = reportedAt;
-        applyTarget(target);
+        applyTarget(target, calendar);
     }
 
-    private void applyTarget(SlaProperties.Target target) {
-        this.respondBy = createdAt.plus(target.respond());
-        this.resolveBy = createdAt.plus(target.resolve()).plus(slaPausedMicros, ChronoUnit.MICROS);
+    private void applyTarget(SlaProperties.Target target, SlaCalendar calendar) {
+        this.respondBy = calendar.add(createdAt, target.respond());
+        this.resolveBy = calendar.add(createdAt,
+                target.resolve().plus(slaPausedMicros, ChronoUnit.MICROS));
 
         // A deadline moved past the time its breach was announced can be
         // breached (and announced) again.
@@ -194,9 +199,10 @@ public class Incident {
     }
 
     /** Deadlines are recalculated from when the incident was reported. */
-    public void changePriority(IncidentPriority priority, SlaProperties.Target target) {
+    public void changePriority(
+            IncidentPriority priority, SlaProperties.Target target, SlaCalendar calendar) {
         this.priority = priority;
-        applyTarget(target);
+        applyTarget(target, calendar);
     }
 
     /** {@code null} clears the category. */
@@ -212,11 +218,11 @@ public class Incident {
     }
 
     /** Changes status; use {@link #putOnHold} to put it on hold. */
-    public void updateStatus(IncidentStatus status, Instant now) {
+    public void updateStatus(IncidentStatus status, Instant now, SlaCalendar calendar) {
         if (status == IncidentStatus.ON_HOLD) {
             throw new IllegalArgumentException("Use putOnHold to put an incident on hold");
         }
-        endHold(now);
+        endHold(now, calendar);
         this.status = status;
 
         if (status != IncidentStatus.OPEN) {
@@ -247,13 +253,13 @@ public class Incident {
     }
 
     /** Ends a hold, if any: the time on hold moves the resolution deadline later. */
-    private void endHold(Instant now) {
+    private void endHold(Instant now, SlaCalendar calendar) {
         if (onHoldSince == null) {
             return;
         }
-        long paused = Math.max(0, ChronoUnit.MICROS.between(onHoldSince, now));
-        slaPausedMicros += paused;
-        resolveBy = resolveBy.plus(paused, ChronoUnit.MICROS);
+        java.time.Duration paused = calendar.countedTime(onHoldSince, now);
+        slaPausedMicros += paused.toNanos() / 1_000;
+        resolveBy = calendar.add(resolveBy, paused);
         if (resolutionBreachNotifiedAt != null && resolveBy.isAfter(resolutionBreachNotifiedAt)) {
             resolutionBreachNotifiedAt = null;
         }

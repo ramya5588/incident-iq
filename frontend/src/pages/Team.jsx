@@ -14,6 +14,7 @@ import {
   getPasswordResetAvailability,
   updateUserDetails,
 } from '../services/incidentApi'
+import BusinessHoursSettings from '../components/BusinessHoursSettings'
 import { useCurrentUser } from '../context/currentUserContext'
 import { initials } from '../utils/initials'
 import { isAdmin } from '../utils/roles'
@@ -703,6 +704,8 @@ function Team() {
               ))}
           </div>
         </section>
+
+        <BusinessHoursSettings admin={admin} />
       </main>
     </div>
   )

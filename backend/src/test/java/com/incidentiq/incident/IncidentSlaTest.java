@@ -19,7 +19,7 @@ class IncidentSlaTest {
     private static final Instant DUE = START.plus(Duration.ofHours(4));
 
     private static Clock at(Duration elapsed, Instant completedAt) {
-        return Clock.of(START, DUE, completedAt, START.plus(elapsed));
+        return Clock.of(START, DUE, completedAt, START.plus(elapsed), SlaCalendar.ALWAYS);
     }
 
     @Test
