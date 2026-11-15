@@ -42,6 +42,7 @@ public class IncidentService {
     private final Clock clock;
     private final NotificationService notifications;
     private final BusinessHoursService businessHours;
+    private final WatcherService watchers;
 
     public IncidentService(
             IncidentRepository incidentRepository,
@@ -52,7 +53,8 @@ public class IncidentService {
             SlaProperties slaProperties,
             Clock clock,
             NotificationService notifications,
-            BusinessHoursService businessHours) {
+            BusinessHoursService businessHours,
+            WatcherService watchers) {
 
         this.incidentRepository = incidentRepository;
         this.userRepository = userRepository;
@@ -63,6 +65,7 @@ public class IncidentService {
         this.clock = clock;
         this.notifications = notifications;
         this.businessHours = businessHours;
+        this.watchers = watchers;
     }
 
     /** Current time at the database's precision (microseconds). */
@@ -337,6 +340,11 @@ public class IncidentService {
             throw new InvalidCommentException(
                     "Comment must not exceed " + COMMENT_MAX_LENGTH + " characters");
         }
+        // Mentioned people follow the incident from now on, so they hear the replies.
+        watchers.startWatching(incident.getId(), mentions.mentioned().stream()
+                .map(UserAccount::getId)
+                .filter(id -> !id.equals(author.getId()))
+                .toList());
 
         if (internal) {
             // Only for the team: no change to the incident, and the
@@ -443,9 +451,25 @@ public class IncidentService {
             boolean overdue,
             Pageable pageable) {
 
+        return getIncidents(status, priority, search, overdue, null, pageable);
+    }
+
+    /** {@code watchedBy}: only incidents this person watches (null for all). */
+    @Transactional(readOnly = true)
+    public Page<IncidentResponse> getIncidents(
+            IncidentStatus status,
+            IncidentPriority priority,
+            String search,
+            boolean overdue,
+            UUID watchedBy,
+            Pageable pageable) {
+
         var filter = IncidentSpecifications.filter(status, priority, search);
         if (overdue) {
             filter = filter.and(IncidentSpecifications.overdue(now()));
+        }
+        if (watchedBy != null) {
+            filter = filter.and(IncidentSpecifications.watchedBy(watchedBy));
         }
 
         SlaCalendars calendars = businessHours.calendars();

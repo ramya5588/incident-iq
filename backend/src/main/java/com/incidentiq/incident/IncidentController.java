@@ -12,10 +12,12 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -33,10 +35,13 @@ public class IncidentController {
 
     private final IncidentService service;
     private final BulkIncidentService bulk;
+    private final WatcherService watchers;
 
-    public IncidentController(IncidentService service, BulkIncidentService bulk) {
+    public IncidentController(
+            IncidentService service, BulkIncidentService bulk, WatcherService watchers) {
         this.service = service;
         this.bulk = bulk;
+        this.watchers = watchers;
     }
 
     @PostMapping
@@ -76,9 +81,37 @@ public class IncidentController {
             @RequestParam(name = "q", required = false)
             @Size(max = 200, message = "Search must not exceed 200 characters") String search,
             @RequestParam(defaultValue = "false") boolean overdue,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @RequestParam(defaultValue = "false") boolean watching,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @AuthenticationPrincipal AppUserPrincipal actor) {
 
-        return service.getIncidents(status, priority, search, overdue, pageable);
+        return service.getIncidents(
+                status, priority, search, overdue, watching ? actor.id() : null, pageable);
+    }
+
+    /** Whether you watch it and how many do; agents and admins also see who. */
+    @GetMapping("/{incidentId}/watchers")
+    public WatchersResponse getWatchers(
+            @PathVariable UUID incidentId,
+            @AuthenticationPrincipal AppUserPrincipal actor) {
+
+        return watchers.get(incidentId, actor.id(), actor.role() != UserRole.USER);
+    }
+
+    @PutMapping("/{incidentId}/watchers/me")
+    public WatchersResponse watch(
+            @PathVariable UUID incidentId,
+            @AuthenticationPrincipal AppUserPrincipal actor) {
+
+        return watchers.watch(incidentId, actor.id(), actor.role() != UserRole.USER);
+    }
+
+    @DeleteMapping("/{incidentId}/watchers/me")
+    public WatchersResponse stopWatching(
+            @PathVariable UUID incidentId,
+            @AuthenticationPrincipal AppUserPrincipal actor) {
+
+        return watchers.stopWatching(incidentId, actor.id(), actor.role() != UserRole.USER);
     }
 
     /** The same status, priority or assignee change for several incidents. */

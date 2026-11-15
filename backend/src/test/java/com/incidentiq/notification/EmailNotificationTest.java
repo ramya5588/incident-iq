@@ -251,6 +251,22 @@ class EmailNotificationTest {
     }
 
     @Test
+    void watchersHearAboutMissedDeadlinesToo() throws Exception {
+        String id = createIncident("HIGH");
+        assignToAgent(id).andExpect(status().isOk());
+        TestAuth.signInAs(reporter);
+        mockMvc.perform(put("/api/incidents/{id}/watchers/me", id)).andExpect(status().isOk());
+
+        clock.advance(Duration.ofHours(9));
+        assertThat(breachNotifier.announceBreaches()).isEqualTo(1);
+
+        // Alex as the assignee, and Riley as a watcher.
+        assertThat(notificationRepository.findByRecipientIdOrderByIdDesc(
+                        reporter.getId(), org.springframework.data.domain.PageRequest.of(0, 5)))
+                .anySatisfy(n -> assertThat(n.getMessage()).endsWith("missed its resolution deadline"));
+    }
+
+    @Test
     void aFailedSendDoesntUndoTheChange() throws Exception {
         doThrow(new MailSendException("Mail server down"))
                 .when(mailSender).send(any(SimpleMailMessage.class));

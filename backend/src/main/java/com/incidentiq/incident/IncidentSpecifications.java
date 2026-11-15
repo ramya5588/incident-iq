@@ -4,12 +4,15 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.data.jpa.domain.Specification;
 
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 
 /**
  * Builds the incident list query from whichever filters are present, so one
@@ -76,6 +79,17 @@ final class IncidentSpecifications {
                                 cb.isNull(root.get("firstRespondedAt")),
                                 cb.lessThanOrEqualTo(root.<Instant>get("respondBy"), now)),
                         cb.lessThanOrEqualTo(root.<Instant>get("resolveBy"), now)));
+    }
+
+    /** Incidents this person watches. */
+    static Specification<Incident> watchedBy(UUID userId) {
+        return (root, query, cb) -> {
+            Subquery<UUID> watched = query.subquery(UUID.class);
+            Root<IncidentWatcher> watcher = watched.from(IncidentWatcher.class);
+            watched.select(watcher.get("incidentId"))
+                    .where(cb.equal(watcher.get("userId"), userId));
+            return root.get("id").in(watched);
+        };
     }
 
     /** Treat %, _ and the escape character itself as plain text. */

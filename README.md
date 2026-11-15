@@ -23,6 +23,10 @@ changed what.
 - **Incident list** with search (text or incident number), status and
   priority filters, and pagination. All of it is kept in the URL, so you can
   bookmark or share a search.
+- **Watching:** anyone can Watch an incident to get its comments, status
+  changes and missed deadlines, and use "Watching only" on the list to see
+  what they follow. People you @mention start watching automatically (see
+  [Watching](#watching)).
 - **Bulk changes** (agents and admins): tick incidents on the list, or "select
   all" on the page, then change their status (including On hold, with a
   reason), priority or assignee in one go. Each incident is changed exactly as
@@ -47,9 +51,9 @@ changed what.
   business hours only, with holidays (see [Business hours](#business-hours)).
 - **Notifications:** a bell in the sidebar with an unread count. You're
   notified when an incident is assigned to you, when someone @mentions you,
-  when someone comments on an incident you reported or are assigned, when the
-  status of an incident you reported changes, and when an SLA deadline is
-  missed. Missed deadlines go to
+  when someone comments on an incident you reported, are assigned or watch,
+  when the status of an incident you reported or watch changes, and when an
+  SLA deadline is missed. Missed deadlines go to
   the assignee, or to every admin if nobody is assigned. You're never notified
   about your own actions.
 - **Email notifications:** on the Account page, each person chooses which
@@ -461,6 +465,9 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `GET /incidents` | signed in | List incidents (`q`, `status`, `priority`, `overdue`, `page`, `size`). `overdue=true` keeps open or in-progress incidents past a deadline. `q` searches title, description and category, or finds an incident number such as `42` or `INC-042` |
 | `POST /incidents` | signed in | Report an incident |
 | `GET /incidents/{id}` | signed in | Get one incident |
+| `GET /incidents/{id}/watchers` | signed in | `{ watching, count, watchers }`; `watchers` (names) only for agents and admins |
+| `PUT /incidents/{id}/watchers/me` | signed in | Start watching (does nothing if you already are) |
+| `DELETE /incidents/{id}/watchers/me` | signed in | Stop watching |
 | `PATCH /incidents/bulk` | agent, admin | The same change for up to 100 incidents: `{ incidentIds, status?, holdReason?, holdNote?, priority?, assigneeId?, unassign? }`. Returns `{ updated, failed: [{ incidentId, message }] }` |
 | `PATCH /incidents/{id}` | agent, admin | Edit title, description, priority, category |
 | `PATCH /incidents/{id}/status` | agent, admin | Change status (`{ status }`; for `ON_HOLD` also `holdReason` and an optional `holdNote`) |
@@ -527,6 +534,24 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
   incident themselves.
 - **Can't change later:** a note stays internal. To tell the reporter
   something, post a reply.
+
+## Watching
+
+- **Who:** anyone signed in can watch any incident. The page shows how many
+  people watch it. Agents and admins also see who; reporters see only the
+  count.
+- **What watchers get:** the incident's comments, status changes and missed
+  SLA deadlines, through the usual bell and email settings. They don't get
+  assignment notices; those go to the person assigned.
+- **Privacy:** watchers with the User role never hear about internal notes.
+  Deactivated members get nothing.
+- **One notification each:** if you're also the reporter, the assignee or
+  mentioned, you still get one notification per event.
+- **Automatic watching:** when someone @mentions you, you start watching, so
+  you hear the replies. Mentioning yourself doesn't. You can stop watching at
+  any time.
+- **List filter:** "Watching only" on the incident list (`?watching=true`)
+  shows just the incidents you follow.
 
 ## Mentions
 

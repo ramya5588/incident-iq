@@ -13,7 +13,7 @@ const OPTIONS = [
   {
     key: 'slaBreached',
     label: 'An incident misses an SLA deadline',
-    hint: "Ones assigned to you, or (for admins) ones nobody's assigned.",
+    hint: "Ones assigned to you or that you watch, or (for admins) ones nobody's assigned.",
   },
   {
     key: 'mentioned',
@@ -23,12 +23,12 @@ const OPTIONS = [
   {
     key: 'commented',
     label: 'Someone comments',
-    hint: "On incidents you reported or are assigned.",
+    hint: 'On incidents you reported, are assigned or watch.',
   },
   {
     key: 'statusChanged',
     label: 'The status changes',
-    hint: 'On incidents you reported.',
+    hint: 'On incidents you reported or watch.',
   },
 ]
 

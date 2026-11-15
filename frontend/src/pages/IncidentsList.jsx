@@ -51,6 +51,7 @@ function IncidentsList() {
   const priority = searchParams.get('priority') ?? ''
   const q = searchParams.get('q') ?? ''
   const overdue = searchParams.get('overdue') === 'true'
+  const watching = searchParams.get('watching') === 'true'
   const now = useNow()
   const page = Math.max(Number(searchParams.get('page') ?? 0) || 0, 0)
 
@@ -109,6 +110,7 @@ function IncidentsList() {
           priority,
           q: q.trim(),
           overdue,
+          watching,
           page,
           size: PAGE_SIZE,
         })
@@ -126,7 +128,7 @@ function IncidentsList() {
     return () => {
       cancelled = true
     }
-  }, [status, priority, q, overdue, page, reloadKey])
+  }, [status, priority, q, overdue, watching, page, reloadKey])
 
   function updateParams(changes) {
     const next = new URLSearchParams(searchParams)
@@ -146,7 +148,7 @@ function IncidentsList() {
   const totalElements = result?.totalElements ?? 0
   const totalPages = result?.totalPages ?? 0
   const searching = q.trim() !== ''
-  const hasFilters = status !== '' || priority !== '' || searching || overdue
+  const hasFilters = status !== '' || priority !== '' || searching || overdue || watching
   const firstShown = totalElements === 0 ? 0 : page * PAGE_SIZE + 1
   const lastShown = page * PAGE_SIZE + incidents.length
   const selectedIncidents = incidents.filter((incident) => selectedIds.includes(incident.id))
@@ -259,6 +261,20 @@ function IncidentsList() {
               Overdue only
             </label>
 
+            <label className="checkbox-filter">
+              <input
+                type="checkbox"
+                checked={watching}
+                onChange={(event) =>
+                  updateParams({
+                    watching: event.target.checked ? 'true' : '',
+                    page: '',
+                  })
+                }
+              />
+              Watching only
+            </label>
+
             {hasFilters && (
               <button
                 type="button"
@@ -353,7 +369,9 @@ function IncidentsList() {
                   ? `No incidents match “${q.trim()}”${
                       status || priority ? ' with these filters' : ''
                     }.`
-                  : overdue && !status && !priority
+                  : watching && !overdue && !status && !priority
+                    ? "You're not watching any incidents. Use Watch on an incident to follow it."
+                    : overdue && !status && !priority
                     ? 'Nothing is overdue. Nice work.'
                     : hasFilters
                       ? 'No incidents match these filters.'

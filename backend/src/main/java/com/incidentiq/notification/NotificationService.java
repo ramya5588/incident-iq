@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.incidentiq.incident.Incident;
+import com.incidentiq.incident.IncidentWatcherRepository;
 import com.incidentiq.incident.IncidentStatus;
 import com.incidentiq.user.UserAccount;
 import com.incidentiq.user.UserAccountRepository;
@@ -39,19 +40,29 @@ public class NotificationService {
     private final Clock clock;
     private final ApplicationEventPublisher events;
     private final EmailSettings emailSettings;
+    private final IncidentWatcherRepository watcherRepository;
 
     public NotificationService(
             NotificationRepository repository,
             UserAccountRepository userRepository,
             Clock clock,
             ApplicationEventPublisher events,
-            EmailSettings emailSettings) {
+            EmailSettings emailSettings,
+            IncidentWatcherRepository watcherRepository) {
 
         this.repository = repository;
         this.userRepository = userRepository;
         this.clock = clock;
         this.events = events;
         this.emailSettings = emailSettings;
+        this.watcherRepository = watcherRepository;
+    }
+
+    /** {@code people} plus the incident's watchers (duplicates are fine: send() merges them). */
+    private List<UserAccount> withWatchers(Incident incident, List<UserAccount> people) {
+        List<UserAccount> all = new ArrayList<>(people);
+        all.addAll(watcherRepository.findWatchers(incident.getId()));
+        return all;
     }
 
     private Instant now() {
@@ -120,8 +131,9 @@ public class NotificationService {
         String message = resumed
                 ? name(author) + " replied on " + label(incident) + ", so it's back in progress"
                 : name(author) + " commented on " + label(incident);
-        send(without(Arrays.asList(incident.getCreatedBy(), incident.getAssignedTo()), mentioned),
-                incident, NotificationType.COMMENTED, message, author);
+        List<UserAccount> involved = withWatchers(
+                incident, Arrays.asList(incident.getCreatedBy(), incident.getAssignedTo()));
+        send(without(involved, mentioned), incident, NotificationType.COMMENTED, message, author);
     }
 
     /** People mentioned in a comment or internal note (already checked as allowed). */
@@ -155,7 +167,8 @@ public class NotificationService {
             Incident incident, UserAccount author, Collection<UserAccount> mentioned) {
 
         List<UserAccount> team = new ArrayList<>();
-        for (UserAccount user : Arrays.asList(incident.getCreatedBy(), incident.getAssignedTo())) {
+        for (UserAccount user : withWatchers(
+                incident, Arrays.asList(incident.getCreatedBy(), incident.getAssignedTo()))) {
             if (user != null && user.getRole() != UserRole.USER) {
                 team.add(user);
             }
@@ -167,7 +180,7 @@ public class NotificationService {
     public void notifyStatusChanged(
             Incident incident, IncidentStatus status, UserAccount actor) {
 
-        send(List.of(incident.getCreatedBy()), incident, NotificationType.STATUS_CHANGED,
+        send(withWatchers(incident, List.of(incident.getCreatedBy())), incident, NotificationType.STATUS_CHANGED,
                 name(actor) + " changed " + label(incident) + " to " + statusLabel(status), actor);
     }
 
@@ -176,7 +189,7 @@ public class NotificationService {
             Incident incident, boolean response, List<UserAccount> recipients) {
 
         String deadline = response ? "response" : "resolution";
-        send(recipients, incident, NotificationType.SLA_BREACHED,
+        send(withWatchers(incident, recipients), incident, NotificationType.SLA_BREACHED,
                 label(incident) + " missed its " + deadline + " deadline", null);
     }
 

@@ -10,6 +10,7 @@ import {
 import IncidentTimeline from '../components/IncidentTimeline'
 import IncidentEditForm from '../components/IncidentEditForm'
 import IncidentAttachments from '../components/IncidentAttachments'
+import WatchButton from '../components/WatchButton'
 import { useCurrentUser } from '../context/currentUserContext'
 import {
     HOLD_REASONS,
@@ -268,6 +269,8 @@ function IncidentDetails() {
                     <p>
                         INC-{String(incident.incidentNumber).padStart(3, '0')}
                     </p>
+
+                    <WatchButton incidentId={id} />
 
                     {editMessage && (
                         <p className="status-message">{editMessage}</p>

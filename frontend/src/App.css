@@ -1138,6 +1138,31 @@ a.nav-item {
   vertical-align: 1px;
 }
 
+/* Watching */
+.watch-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 16px;
+}
+
+.watch-control .secondary-button.watching {
+  border-color: #4f46e5;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.watch-count {
+  color: #667085;
+  font-size: 14px;
+}
+
+.watch-control .error-message {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 /* @mentions */
 .mention-input {
   position: relative;

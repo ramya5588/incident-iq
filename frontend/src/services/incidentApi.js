@@ -179,16 +179,34 @@ export async function getIncidentPage({
     priority,
     q,
     overdue = false,
+    watching = false,
     page = 0,
     size = 10,
 } = {}) {
     const params = { page, size }
     if (overdue) params.overdue = true
+    if (watching) params.watching = true
     if (status) params.status = status
     if (priority) params.priority = priority
     if (q) params.q = q
 
     const response = await api.get('/incidents', { params })
+    return response.data
+}
+
+/** { watching, count, watchers } (watchers is null for reporters). */
+export async function getWatchers(incidentId) {
+    const response = await api.get(`/incidents/${incidentId}/watchers`)
+    return response.data
+}
+
+export async function watchIncident(incidentId) {
+    const response = await api.put(`/incidents/${incidentId}/watchers/me`)
+    return response.data
+}
+
+export async function stopWatchingIncident(incidentId) {
+    const response = await api.delete(`/incidents/${incidentId}/watchers/me`)
     return response.data
 }
 
