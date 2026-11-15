@@ -46,7 +46,10 @@ public class IncidentExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
-    @ExceptionHandler({AttachmentForbiddenException.class, InternalNoteForbiddenException.class})
+    @ExceptionHandler({
+            AttachmentForbiddenException.class,
+            InternalNoteForbiddenException.class,
+            RatingNotAllowedException.class})
     public ResponseEntity<ApiError> handleForbidden(RuntimeException exception) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(
                 Instant.now(), HttpStatus.FORBIDDEN.value(), "Forbidden", exception.getMessage()));

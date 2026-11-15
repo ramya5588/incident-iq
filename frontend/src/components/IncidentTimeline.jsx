@@ -71,6 +71,8 @@ function describeEvent(event) {
       return `${actor} attached ${event.toValue}`
     case 'ATTACHMENT_REMOVED':
       return `${actor} removed the attachment ${event.toValue}`
+    case 'SATISFACTION_RATED':
+      return `${actor} rated this ${event.toValue}/5`
     case 'COMMENT':
       return event.internal ? `${actor} added an internal note` : `${actor} commented`
     default:

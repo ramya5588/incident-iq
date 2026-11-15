@@ -25,6 +25,9 @@ public record IncidentResponse(
         HoldReason holdReason,
         String holdNote,
         Instant onHoldSince,
+        Integer satisfactionScore,
+        String satisfactionComment,
+        Instant ratedAt,
         IncidentSla sla) {
 
     public static IncidentResponse from(Incident incident, IncidentSla sla) {
@@ -54,6 +57,9 @@ public record IncidentResponse(
                 incident.getHoldReason(),
                 incident.getHoldNote(),
                 incident.getOnHoldSince(),
+                incident.getSatisfactionScore(),
+                incident.getSatisfactionComment(),
+                incident.getRatedAt(),
                 sla);
     }
 }

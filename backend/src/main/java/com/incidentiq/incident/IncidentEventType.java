@@ -11,5 +11,7 @@ public enum IncidentEventType {
     PRIORITY_CHANGED,
     CATEGORY_CHANGED,
     ATTACHMENT_ADDED,
-    ATTACHMENT_REMOVED
+    ATTACHMENT_REMOVED,
+    /** The reporter rated how it was handled: toValue is the score, message the comment. */
+    SATISFACTION_RATED
 }

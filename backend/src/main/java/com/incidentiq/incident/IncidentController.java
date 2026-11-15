@@ -89,6 +89,16 @@ public class IncidentController {
                 status, priority, search, overdue, watching ? actor.id() : null, pageable);
     }
 
+    /** The reporter rates a resolved incident, 1 to 5 (can be changed later). */
+    @PutMapping("/{incidentId}/rating")
+    public IncidentResponse rate(
+            @PathVariable UUID incidentId,
+            @Valid @RequestBody RateIncidentRequest request,
+            @AuthenticationPrincipal AppUserPrincipal actor) {
+
+        return service.rate(incidentId, request, actor.id());
+    }
+
     /** Whether you watch it and how many do; agents and admins also see who. */
     @GetMapping("/{incidentId}/watchers")
     public WatchersResponse getWatchers(

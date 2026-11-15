@@ -167,7 +167,23 @@ public class ReportService {
                 daily(range, params, where, resolvedWhere),
                 priorityRows,
                 topCategories(params, where),
-                workload(params, priority));
+                workload(params, priority),
+                satisfaction(params, priority));
+    }
+
+    private ReportSummary.Satisfaction satisfaction(MapSqlParameterSource params, IncidentPriority priority) {
+        Map<String, Object> row = jdbc.queryForMap("""
+                SELECT count(*) AS ratings,
+                       round(avg(i.satisfaction_score), 1) AS average,
+                       count(*) FILTER (WHERE i.satisfaction_score >= 4) AS satisfied
+                FROM incidents i
+                WHERE i.rated_at >= :start AND i.rated_at < :end
+                """ + priorityFilter(priority), params);
+        Number average = (Number) row.get("average");
+        return new ReportSummary.Satisfaction(
+                ((Number) row.get("ratings")).longValue(),
+                average == null ? null : average.doubleValue(),
+                ((Number) row.get("satisfied")).longValue());
     }
 
     private List<ReportSummary.Day> daily(
@@ -231,13 +247,15 @@ public class ReportService {
 
         StringBuilder csv = new StringBuilder("﻿");
         csv.append("Incident,Title,Priority,Status,Category,Reported by,Assignee,Reported,")
-                .append("Respond by,First response,Response SLA,Resolve by,Resolved,Resolution SLA\r\n");
+                .append("Respond by,First response,Response SLA,Resolve by,Resolved,Resolution SLA,")
+                .append("Satisfaction,Feedback\r\n");
 
         jdbc.query("""
                 SELECT i.incident_number, i.title, i.priority, i.status, i.category,
                        r.display_name AS reporter, a.display_name AS assignee,
                        i.created_at, i.respond_by, i.first_responded_at, i.resolve_by,
-                       i.resolved_at, i.updated_at, i.on_hold_since
+                       i.resolved_at, i.updated_at, i.on_hold_since,
+                       i.satisfaction_score, i.satisfaction_comment
                 FROM incidents i
                 JOIN app_users r ON r.id = i.created_by
                 LEFT JOIN app_users a ON a.id = i.assigned_to
@@ -282,7 +300,9 @@ public class ReportService {
                 responseSla,
                 time(resolveBy, zone),
                 time(resolved, zone),
-                resolutionSla);
+                resolutionSla,
+                row.getObject("satisfaction_score") == null ? "" : row.getString("satisfaction_score"),
+                nullToEmpty(row.getString("satisfaction_comment")));
         for (int i = 0; i < cells.size(); i++) {
             if (i > 0) {
                 csv.append(',');

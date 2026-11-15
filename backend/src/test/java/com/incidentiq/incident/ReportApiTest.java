@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -63,6 +64,9 @@ class ReportApiTest {
 
     private UserAccount agent;
     private UserAccount reporter;
+    private String databaseDown;
+    private String laptopBroken;
+    private String printerJam;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -72,6 +76,7 @@ class ReportApiTest {
                 new UserAccount("rep.user@incidentiq.test", "Rob Reporter", UserRole.USER));
 
         String e = report("2026-01-04T23:00:00Z", "CRITICAL", "Database down", null);
+        databaseDown = e;
         at("2026-01-05T01:00:00Z");
         setStatus(e, "RESOLVED");
 
@@ -81,6 +86,8 @@ class ReportApiTest {
         String b = report("2026-01-05T10:00:00Z", "HIGH", "Printer jam", "Hardware");
         at("2026-01-05T11:30:00Z");
         assign(b);
+        laptopBroken = a;
+        printerJam = b;
         at("2026-01-05T12:00:00Z");
         setStatus(a, "RESOLVED");
         at("2026-01-05T20:00:00Z");
@@ -144,6 +151,46 @@ class ReportApiTest {
             request.param(params[i], params[i + 1]);
         }
         return mockMvc.perform(request);
+    }
+
+    private void rate(String id, int score, String comment) throws Exception {
+        TestAuth.signInAs(reporter);
+        String commentJson = comment == null ? "null" : "\"" + comment + "\"";
+        mockMvc.perform(put("/api/incidents/{id}/rating", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"score\": " + score + ", \"comment\": " + commentJson + "}"))
+                .andExpect(status().isOk());
+        TestAuth.signInAs(agent);
+    }
+
+    @Test
+    void reportsSatisfactionFromRatingsGivenInTheRange() throws Exception {
+        summary().andExpect(jsonPath("$.satisfaction.ratings").value(0))
+                .andExpect(jsonPath("$.satisfaction.average").doesNotExist());
+
+        rate(laptopBroken, 5, null);
+        rate(printerJam, 2, "Took ages");
+        rate(databaseDown, 4, null);
+        // Given after the range: not counted.
+        at("2026-01-09T10:00:00Z");
+        String late = report("2026-01-09T10:00:00Z", "LOW", "Mouse", "Hardware");
+        setStatus(late, "RESOLVED");
+        rate(late, 1, null);
+
+        summary()
+                .andExpect(jsonPath("$.satisfaction.ratings").value(3))
+                .andExpect(jsonPath("$.satisfaction.average").value(3.7))
+                .andExpect(jsonPath("$.satisfaction.satisfied").value(2));
+        summary("priority", "HIGH")
+                .andExpect(jsonPath("$.satisfaction.ratings").value(2))
+                .andExpect(jsonPath("$.satisfaction.average").value(3.5))
+                .andExpect(jsonPath("$.satisfaction.satisfied").value(1));
+
+        String csv = mockMvc.perform(get("/api/reports/incidents.csv")
+                        .param("from", "2026-01-05").param("to", "2026-01-07"))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(csv.split("\r\n")[0]).endsWith(",Resolution SLA,Satisfaction,Feedback");
+        assertThat(csv).contains("Printer jam").contains(",2,Took ages");
     }
 
     @Test
@@ -254,11 +301,11 @@ class ReportApiTest {
         assertThat(lines[0]).startsWith("Incident,Title,Priority,Status,Category,Reported by,Assignee,Reported,");
         // Oldest first; London is on GMT in January.
         assertThat(lines[1]).contains(",Laptop broken,HIGH,RESOLVED,Hardware,Rob Reporter,Rae Agent,2026-01-05 09:00,")
-                .endsWith(",Met,2026-01-05 17:00,2026-01-05 12:00,Met");
-        assertThat(lines[2]).contains("Printer jam").endsWith(",Missed");
+                .endsWith(",Met,2026-01-05 17:00,2026-01-05 12:00,Met,,");
+        assertThat(lines[2]).contains("Printer jam").endsWith(",Missed,,");
         assertThat(lines[3]).contains("Slow wifi,LOW,OPEN,Network,Rob Reporter,,").contains(",Missed,")
-                .endsWith(",Pending");
-        assertThat(lines[4]).contains("VPN flaky").endsWith(",Paused");
+                .endsWith(",Pending,,");
+        assertThat(lines[4]).contains("VPN flaky").endsWith(",Paused,,");
         // A title that looks like a formula is neutralised and quoted.
         assertThat(lines[5]).contains(",\"'=HYPERLINK(\"\"http://evil.example\"\", \"\"Click\"\")\",");
     }

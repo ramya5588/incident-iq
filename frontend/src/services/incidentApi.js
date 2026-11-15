@@ -194,6 +194,12 @@ export async function getIncidentPage({
     return response.data
 }
 
+/** The reporter rates a resolved incident: { score: 1-5, comment }. Returns the incident. */
+export async function rateIncident(incidentId, { score, comment }) {
+    const response = await api.put(`/incidents/${incidentId}/rating`, { score, comment })
+    return response.data
+}
+
 /** { watching, count, watchers } (watchers is null for reporters). */
 export async function getWatchers(incidentId) {
     const response = await api.get(`/incidents/${incidentId}/watchers`)

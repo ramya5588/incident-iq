@@ -147,6 +147,14 @@ public class IncidentEvent {
         return new IncidentEvent(incident, type, null, name, null, actor);
     }
 
+    public static IncidentEvent rated(
+            Incident incident, int score, String comment, UserAccount reporter) {
+
+        return new IncidentEvent(
+                incident, IncidentEventType.SATISFACTION_RATED,
+                null, String.valueOf(score), comment, reporter);
+    }
+
     public static IncidentEvent comment(
             Incident incident, UserAccount author, String body) {
 

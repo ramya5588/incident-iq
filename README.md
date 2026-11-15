@@ -14,15 +14,20 @@ changed what.
   range, optionally for one priority:
   - **Headline numbers:** incidents reported and resolved, median time to
     first response and to resolve, the share of response and resolution SLAs
-    met, and how many are overdue now.
+    met, how many are overdue now, and satisfaction (the average rating given
+    in the period, and the share of 4s and 5s).
   - **Charts and tables:** reported vs resolved per day (hover, arrow keys or
     a table), SLA met vs missed by priority, top categories, and current open
     work per assignee.
-  - **Download CSV** gives the range's incidents with their deadlines and
-    whether each was met.
+  - **Download CSV** gives the range's incidents with their deadlines,
+    whether each was met, and the reporter's rating and feedback.
 - **Incident list** with search (text or incident number), status and
   priority filters, and pagination. All of it is kept in the URL, so you can
   bookmark or share a search.
+- **Satisfaction ratings:** once an incident is resolved or closed, its
+  reporter rates how it was handled from 1 to 5 stars, with an optional
+  comment, and can change it later. The team sees the rating on the incident
+  and its timeline, and Reports shows the average.
 - **Watching:** anyone can Watch an incident to get its comments, status
   changes and missed deadlines, and use "Watching only" on the list to see
   what they follow. People you @mention start watching automatically (see
@@ -465,6 +470,7 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `GET /incidents` | signed in | List incidents (`q`, `status`, `priority`, `overdue`, `page`, `size`). `overdue=true` keeps open or in-progress incidents past a deadline. `q` searches title, description and category, or finds an incident number such as `42` or `INC-042` |
 | `POST /incidents` | signed in | Report an incident |
 | `GET /incidents/{id}` | signed in | Get one incident |
+| `PUT /incidents/{id}/rating` | the reporter | Rate a resolved or closed incident: `{ score: 1-5, comment? }`. Rating again replaces it |
 | `GET /incidents/{id}/watchers` | signed in | `{ watching, count, watchers }`; `watchers` (names) only for agents and admins |
 | `PUT /incidents/{id}/watchers/me` | signed in | Start watching (does nothing if you already are) |
 | `DELETE /incidents/{id}/watchers/me` | signed in | Stop watching |

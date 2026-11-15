@@ -11,6 +11,7 @@ import IncidentTimeline from '../components/IncidentTimeline'
 import IncidentEditForm from '../components/IncidentEditForm'
 import IncidentAttachments from '../components/IncidentAttachments'
 import WatchButton from '../components/WatchButton'
+import SatisfactionCard from '../components/SatisfactionCard'
 import { useCurrentUser } from '../context/currentUserContext'
 import {
     HOLD_REASONS,
@@ -528,6 +529,17 @@ function IncidentDetails() {
                     </ul>
                 </div>
             )}
+
+            <SatisfactionCard
+                // Start the form again from the saved rating if it changes elsewhere.
+                key={`${incident.id}-${incident.ratedAt ?? 'none'}`}
+                incident={incident}
+                currentUser={currentUser}
+                onRated={(updated) => {
+                    setIncident(updated)
+                    refreshTimeline()
+                }}
+            />
 
             <IncidentAttachments
                 incidentId={id}

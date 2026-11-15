@@ -177,6 +177,23 @@ function ReportsPage() {
                 hint={`${report.resolutionSla.met} met · ${report.resolutionSla.missed} missed`}
               />
               <Stat label="Overdue now" value={report.overdueNow} hint="Open or in progress" />
+              <Stat
+                label="Satisfaction"
+                value={
+                  report.satisfaction.average == null
+                    ? '—'
+                    : `${report.satisfaction.average.toFixed(1)} / 5`
+                }
+                hint={
+                  report.satisfaction.ratings === 0
+                    ? 'No ratings in this period'
+                    : `${report.satisfaction.ratings} rating${
+                        report.satisfaction.ratings === 1 ? '' : 's'
+                      } · ${Math.round(
+                        (report.satisfaction.satisfied / report.satisfaction.ratings) * 100
+                      )}% rated 4 or 5`
+                }
+              />
             </section>
 
             <section className="content-card report-card">

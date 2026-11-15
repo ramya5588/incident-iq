@@ -45,6 +45,7 @@ const REPORT = {
     assignees: [{ userId: 'u-agent', name: 'Alex Agent', open: 0, inProgress: 1, onHold: 1 }],
     unassigned: 1,
   },
+  satisfaction: { ratings: 4, average: 4.3, satisfied: 3 },
 }
 
 describe('report helpers', () => {
@@ -76,6 +77,8 @@ describe('ReportsPage', () => {
     expect(within(stat('Median time to resolve')).getByText('3h')).toBeInTheDocument()
     expect(within(stat('Response SLA met')).getByText('50%')).toBeInTheDocument()
     expect(within(stat('Overdue now')).getByText('1')).toBeInTheDocument()
+    expect(within(stat('Satisfaction')).getByText('4.3 / 5')).toBeInTheDocument()
+    expect(within(stat('Satisfaction')).getByText('4 ratings · 75% rated 4 or 5')).toBeInTheDocument()
 
     // SLA bars carry their numbers in text, not only colour.
     expect(main.getAllByText('2 met · 1 missed (67%)')).toHaveLength(1)

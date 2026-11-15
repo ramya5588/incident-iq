@@ -305,6 +305,27 @@ public class IncidentService {
         return incidents.size();
     }
 
+    /**
+     * The reporter rates how a resolved or closed incident was handled. They
+     * can change their rating later; each rating shows on the timeline.
+     */
+    @Transactional
+    public IncidentResponse rate(UUID incidentId, RateIncidentRequest request, UUID actorId) {
+        Incident incident = findIncident(incidentId);
+        UserAccount actor = findActor(actorId);
+        if (!incident.getCreatedBy().getId().equals(actor.getId())) {
+            throw new RatingNotAllowedException();
+        }
+        if (incident.getStatus() != IncidentStatus.RESOLVED
+                && incident.getStatus() != IncidentStatus.CLOSED) {
+            throw new InvalidStatusChangeException("You can rate an incident once it's resolved.");
+        }
+
+        incident.rate(request.score(), request.comment(), now());
+        eventRepository.save(IncidentEvent.rated(incident, request.score(), request.comment(), actor));
+        return toResponse(incidentRepository.saveAndFlush(incident));
+    }
+
     @Transactional(readOnly = true)
     public List<IncidentEventResponse> getEvents(UUID incidentId, boolean includeInternal) {
         if (!incidentRepository.existsById(incidentId)) {

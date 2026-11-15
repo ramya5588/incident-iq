@@ -1138,6 +1138,101 @@ a.nav-item {
   vertical-align: 1px;
 }
 
+/* Satisfaction ratings */
+.satisfaction-card {
+  margin-top: 24px;
+}
+
+.satisfaction-card h2 {
+  margin-top: 0;
+}
+
+.rating-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+}
+
+.rating-picker legend {
+  margin-bottom: 6px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rating-picker label {
+  position: relative;
+  color: #d0d5dd;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rating-picker label.on {
+  color: #b54708;
+}
+
+/* The radio stays for keyboards and screen readers; the star is what you see. */
+.rating-picker input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.rating-picker label:has(input:focus-visible) {
+  outline: 3px solid rgb(99 102 241 / 35%);
+  border-radius: 6px;
+}
+
+.rating-label {
+  margin-left: 10px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rating-comment {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rating-comment textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.rating-stars {
+  color: #b54708;
+  letter-spacing: 1px;
+}
+
+.rating-stars-empty {
+  color: #d0d5dd;
+}
+
+.rating-quote {
+  margin: 8px 0 0;
+  padding: 8px 14px;
+  border-left: 3px solid #fedf89;
+  color: #344054;
+  white-space: pre-wrap;
+}
+
 /* Watching */
 .watch-control {
   display: flex;

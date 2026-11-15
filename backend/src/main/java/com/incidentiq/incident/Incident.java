@@ -109,6 +109,16 @@ public class Incident {
     @Column(name = "hold_note", length = 200)
     private String holdNote;
 
+    /** The reporter's rating, 1 to 5, once it's resolved (null until rated). */
+    @Column(name = "satisfaction_score")
+    private Integer satisfactionScore;
+
+    @Column(name = "satisfaction_comment", length = 1000)
+    private String satisfactionComment;
+
+    @Column(name = "rated_at")
+    private Instant ratedAt;
+
     /** When the current hold started; set only while the status is ON_HOLD. */
     @Column(name = "on_hold_since")
     private Instant onHoldSince;
@@ -365,6 +375,25 @@ public class Incident {
 
     public HoldReason getHoldReason() {
         return holdReason;
+    }
+
+    /** Rating again replaces the earlier rating. */
+    public void rate(int score, String comment, Instant now) {
+        this.satisfactionScore = score;
+        this.satisfactionComment = comment;
+        this.ratedAt = now;
+    }
+
+    public Integer getSatisfactionScore() {
+        return satisfactionScore;
+    }
+
+    public String getSatisfactionComment() {
+        return satisfactionComment;
+    }
+
+    public Instant getRatedAt() {
+        return ratedAt;
     }
 
     public String getHoldNote() {

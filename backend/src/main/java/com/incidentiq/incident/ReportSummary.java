@@ -27,7 +27,15 @@ public record ReportSummary(
         List<Day> daily,
         List<PriorityRow> byPriority,
         List<CategoryCount> topCategories,
-        Workload workload) {
+        Workload workload,
+        Satisfaction satisfaction) {
+
+    /**
+     * Ratings given in the range (by when they were given). {@code average}
+     * is null with no ratings; {@code satisfied} counts 4s and 5s.
+     */
+    public record Satisfaction(long ratings, Double average, long satisfied) {
+    }
 
     public record SlaOutcome(long met, long missed) {
 
