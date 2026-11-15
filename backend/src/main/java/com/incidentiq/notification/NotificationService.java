@@ -3,6 +3,7 @@ package com.incidentiq.notification;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,6 +19,7 @@ import com.incidentiq.incident.Incident;
 import com.incidentiq.incident.IncidentStatus;
 import com.incidentiq.user.UserAccount;
 import com.incidentiq.user.UserAccountRepository;
+import com.incidentiq.user.UserRole;
 
 /**
  * Creates and reads in-app notifications. The notify* methods run inside the
@@ -109,6 +111,21 @@ public class NotificationService {
                 : name(author) + " commented on " + label(incident);
         send(Arrays.asList(incident.getCreatedBy(), incident.getAssignedTo()),
                 incident, NotificationType.COMMENTED, message, author);
+    }
+
+    /**
+     * An internal note goes to the reporter and assignee, but only those who
+     * can see internal notes (never someone with the USER role).
+     */
+    public void notifyInternalNote(Incident incident, UserAccount author) {
+        List<UserAccount> team = new ArrayList<>();
+        for (UserAccount user : Arrays.asList(incident.getCreatedBy(), incident.getAssignedTo())) {
+            if (user != null && user.getRole() != UserRole.USER) {
+                team.add(user);
+            }
+        }
+        send(team, incident, NotificationType.COMMENTED,
+                name(author) + " added an internal note on " + label(incident), author);
     }
 
     public void notifyStatusChanged(

@@ -53,6 +53,10 @@ changed what.
   [Email](#email)).
 - **Activity timeline** on every incident: creation, status and assignee
   changes, edits, triage runs and comments, each with who did it and when.
+- **Internal notes:** agents and admins choose between a reply, which the
+  reporter sees, and an internal note, which only agents and admins see.
+  Notes are shown in amber with an "Internal" label, and the comment box turns
+  amber while you write one (see [Internal notes](#internal-notes)).
 - **Team page** with each member's role and number of active incidents.
   Admins can add members, edit names and emails, change roles, reset
   passwords, and deactivate or reactivate members there. Deactivating ends
@@ -153,6 +157,7 @@ profile.
 | | User (reporter) | Agent | Admin |
 |---|---|---|---|
 | View incidents, report new ones, comment | ✓ | ✓ | ✓ |
+| Add and see internal notes | | ✓ | ✓ |
 | Edit details, change status, assign, run AI triage | | ✓ | ✓ |
 | Add, edit, deactivate and reactivate members; change roles; reset passwords | | | ✓ |
 | Can be assigned incidents | | ✓ | ✓ |
@@ -449,8 +454,8 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `PATCH /incidents/{id}/status` | agent, admin | Change status (`{ status }`; for `ON_HOLD` also `holdReason` and an optional `holdNote`) |
 | `PATCH /incidents/{id}/assignee` | agent, admin | Assign or unassign |
 | `POST /incidents/{id}/triage` | agent, admin | Run AI triage |
-| `GET /incidents/{id}/events` | signed in | Activity timeline, newest first |
-| `POST /incidents/{id}/comments` | signed in | Add a comment |
+| `GET /incidents/{id}/events` | signed in | Activity timeline, newest first; internal notes only for agents and admins |
+| `POST /incidents/{id}/comments` | signed in | Add a comment; `"internal": true` makes it an internal note (agents and admins only) |
 | `GET /incidents/{id}/attachments` | signed in | The incident's attachments (names, sizes, who added them; no file data) |
 | `POST /incidents/{id}/attachments` | signed in | Attach one file (multipart field `file`); reporters only on their own incidents |
 | `GET /incidents/{id}/attachments/{attachmentId}` | signed in | The file: images inline, everything else as a download |
@@ -496,6 +501,20 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 - **The CSV** is UTF-8 for Excel, with times in the viewer's time zone. Text
   that starts like a spreadsheet formula (`=`, `+`, `-`, `@`) is prefixed with
   `'` so opening the file can't run it.
+
+## Internal notes
+
+- **Who sees them:** only agents and admins. The server leaves them out of the
+  timeline it sends to reporters, so they never reach a reporter's browser.
+  Reporters can't add them (403).
+- **Who's told:** the incident's reporter and assignee, but only if they're
+  agents or admins. A reporter with the User role is never notified, and the
+  notification only says a note was added, not what it says.
+- **No side effects:** a note doesn't count as a reply. It doesn't take an
+  incident off "waiting on the reporter" hold, even if an agent reported the
+  incident themselves.
+- **Can't change later:** a note stays internal. To tell the reporter
+  something, post a reply.
 
 ## Attachments
 

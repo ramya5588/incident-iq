@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.incidentiq.auth.AppUserPrincipal;
+import com.incidentiq.user.UserRole;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
@@ -106,9 +107,11 @@ public class IncidentController {
 
     @GetMapping("/{incidentId}/events")
     public List<IncidentEventResponse> getEvents(
-            @PathVariable UUID incidentId) {
+            @PathVariable UUID incidentId,
+            @AuthenticationPrincipal AppUserPrincipal actor) {
 
-        return service.getEvents(incidentId);
+        // Reporters never receive internal notes.
+        return service.getEvents(incidentId, actor.role() != UserRole.USER);
     }
 
     @PostMapping("/{incidentId}/comments")

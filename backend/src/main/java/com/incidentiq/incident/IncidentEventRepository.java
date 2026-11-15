@@ -11,4 +11,8 @@ public interface IncidentEventRepository extends JpaRepository<IncidentEvent, Lo
     /** Newest first; id breaks ties between events in the same instant. */
     @EntityGraph(attributePaths = "actor")
     List<IncidentEvent> findAllByIncidentIdOrderByIdDesc(UUID incidentId);
+
+    /** The same without internal notes, for reporters. */
+    @EntityGraph(attributePaths = "actor")
+    List<IncidentEvent> findAllByIncidentIdAndInternalFalseOrderByIdDesc(UUID incidentId);
 }

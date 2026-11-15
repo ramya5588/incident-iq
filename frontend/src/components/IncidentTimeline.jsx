@@ -5,7 +5,7 @@ import {
   getIncidentEvents,
 } from '../services/incidentApi'
 import { useCurrentUser } from '../context/currentUserContext'
-import { STATUS_LABELS } from '../utils/roles'
+import { STATUS_LABELS, canWorkIncidents } from '../utils/roles'
 
 const COMMENT_MAX_LENGTH = 2000
 
@@ -70,14 +70,15 @@ function describeEvent(event) {
     case 'ATTACHMENT_REMOVED':
       return `${actor} removed the attachment ${event.toValue}`
     case 'COMMENT':
-      return `${actor} commented`
+      return event.internal ? `${actor} added an internal note` : `${actor} commented`
     default:
       return event.type
   }
 }
 
 /**
- * Activity timeline for an incident with a comment box.
+ * Activity timeline for an incident with a comment box. Agents and admins
+ * choose between a reply (the reporter sees it) and an internal note.
  * Bump `refreshKey` to reload after the incident changes elsewhere.
  * `onCommented` is called after a comment is posted.
  */
@@ -88,9 +89,11 @@ function IncidentTimeline({ incidentId, refreshKey, onCommented }) {
   const [error, setError] = useState('')
 
   const [body, setBody] = useState('')
+  const [internal, setInternal] = useState(false)
   const [posting, setPosting] = useState(false)
   const [postError, setPostError] = useState('')
-
+  const canWriteNotes = canWorkIncidents(currentUser)
+  const asNote = canWriteNotes && internal
 
   useEffect(() => {
     let cancelled = false
@@ -123,7 +126,7 @@ function IncidentTimeline({ incidentId, refreshKey, onCommented }) {
     setPostError('')
 
     try {
-      const comment = await addIncidentComment(incidentId, body)
+      const comment = await addIncidentComment(incidentId, body, { internal: asNote })
       setEvents((current) => [comment, ...current])
       setBody('')
       onCommented?.()
@@ -139,10 +142,49 @@ function IncidentTimeline({ incidentId, refreshKey, onCommented }) {
     <section className="timeline-section">
       <h2>Activity</h2>
 
-      <form className="comment-form" onSubmit={handleComment}>
+      <form
+        className={`comment-form${asNote ? ' internal' : ''}`}
+        onSubmit={handleComment}
+      >
+        {canWriteNotes && (
+          <div className="comment-mode" role="radiogroup" aria-label="Who can see this">
+            <label className={asNote ? '' : 'selected'}>
+              <input
+                type="radio"
+                name="comment-mode"
+                checked={!asNote}
+                onChange={() => setInternal(false)}
+                disabled={posting}
+              />
+              Reply
+            </label>
+            <label className={asNote ? 'selected' : ''}>
+              <input
+                type="radio"
+                name="comment-mode"
+                checked={asNote}
+                onChange={() => setInternal(true)}
+                disabled={posting}
+              />
+              Internal note
+            </label>
+            <span className="comment-mode-hint">
+              {asNote
+                ? 'Only agents and admins will see this.'
+                : 'The reporter will see this.'}
+            </span>
+          </div>
+        )}
         <textarea
           rows="3"
-          placeholder="Add a note for the team…"
+          aria-label={asNote ? 'Internal note' : 'Comment'}
+          placeholder={
+            asNote
+              ? 'Add an internal note for agents and admins…'
+              : canWriteNotes
+                ? 'Write a reply…'
+                : 'Add a comment…'
+          }
           value={body}
           onChange={(event) => setBody(event.target.value)}
           maxLength={COMMENT_MAX_LENGTH}
@@ -163,7 +205,7 @@ function IncidentTimeline({ incidentId, refreshKey, onCommented }) {
             className="primary-button"
             disabled={posting || body.trim() === ''}
           >
-            {posting ? 'Posting...' : 'Comment'}
+            {posting ? 'Posting...' : asNote ? 'Add internal note' : 'Comment'}
           </button>
         </div>
 
@@ -180,11 +222,14 @@ function IncidentTimeline({ incidentId, refreshKey, onCommented }) {
         {events.map((event) => (
           <li
             key={event.id}
-            className={`timeline-item ${event.type.toLowerCase()}`}
+            className={`timeline-item ${event.type.toLowerCase()}${event.internal ? ' internal' : ''}`}
           >
             <span className="timeline-dot" aria-hidden="true" />
             <div className="timeline-body">
-              <p className="timeline-title">{describeEvent(event)}</p>
+              <p className="timeline-title">
+                {describeEvent(event)}
+                {event.internal && <span className="internal-badge">Internal</span>}
+              </p>
               {event.message && (
                 <p
                   className={

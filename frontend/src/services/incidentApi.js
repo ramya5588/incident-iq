@@ -289,9 +289,12 @@ export async function getIncidentEvents(id) {
     return response.data
 }
 
-/** Posted as the signed-in user. */
-export async function addIncidentComment(id, body) {
-    const response = await api.post(`/incidents/${id}/comments`, { body })
+/**
+ * Posted as the signed-in user. `internal`: an internal note only agents and
+ * admins can see.
+ */
+export async function addIncidentComment(id, body, { internal = false } = {}) {
+    const response = await api.post(`/incidents/${id}/comments`, { body, internal })
     return response.data
 }
 

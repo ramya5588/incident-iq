@@ -152,7 +152,7 @@ describe('IncidentDetails on hold', () => {
     const user = userEvent.setup()
     renderAs(USERS.user)
 
-    await user.type(await screen.findByPlaceholderText(/Add a note/), 'Here it is')
+    await user.type(await screen.findByPlaceholderText(/Add a comment/), 'Here it is')
     await user.click(screen.getByRole('button', { name: 'Comment' }))
 
     expect(await screen.findByText('In progress')).toBeInTheDocument()

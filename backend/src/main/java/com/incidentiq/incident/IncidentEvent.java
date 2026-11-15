@@ -51,6 +51,10 @@ public class IncidentEvent {
     @JoinColumn(name = "actor_id", updatable = false)
     private UserAccount actor;
 
+    /** Internal notes are comments only agents and admins can see. */
+    @Column(nullable = false, updatable = false)
+    private boolean internal;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -150,6 +154,15 @@ public class IncidentEvent {
                 incident, IncidentEventType.COMMENT, null, null, body, author);
     }
 
+    /** A comment only agents and admins can see. */
+    public static IncidentEvent internalNote(
+            Incident incident, UserAccount author, String body) {
+
+        IncidentEvent note = comment(incident, author, body);
+        note.internal = true;
+        return note;
+    }
+
     @PrePersist
     void beforeInsert() {
         if (createdAt == null) {
@@ -183,6 +196,10 @@ public class IncidentEvent {
 
     public UserAccount getActor() {
         return actor;
+    }
+
+    public boolean isInternal() {
+        return internal;
     }
 
     public Instant getCreatedAt() {

@@ -300,12 +300,15 @@ public class IncidentService {
     }
 
     @Transactional(readOnly = true)
-    public List<IncidentEventResponse> getEvents(UUID incidentId) {
+    public List<IncidentEventResponse> getEvents(UUID incidentId, boolean includeInternal) {
         if (!incidentRepository.existsById(incidentId)) {
             throw new IncidentNotFoundException(incidentId);
         }
 
-        return eventRepository.findAllByIncidentIdOrderByIdDesc(incidentId)
+        List<IncidentEvent> events = includeInternal
+                ? eventRepository.findAllByIncidentIdOrderByIdDesc(incidentId)
+                : eventRepository.findAllByIncidentIdAndInternalFalseOrderByIdDesc(incidentId);
+        return events
                 .stream()
                 .map(IncidentEventResponse::from)
                 .toList();
@@ -319,6 +322,18 @@ public class IncidentService {
 
         Incident incident = findIncident(incidentId);
         UserAccount author = findUser(authorId);
+
+        if (request.isInternal()) {
+            if (author.getRole() == UserRole.USER) {
+                throw new InternalNoteForbiddenException();
+            }
+            // Only for the team: no change to the incident, and the
+            // reporter is never told.
+            IncidentEvent note = eventRepository.saveAndFlush(
+                    IncidentEvent.internalNote(incident, author, request.body()));
+            notifications.notifyInternalNote(incident, author);
+            return IncidentEventResponse.from(note);
+        }
 
         IncidentEvent comment = eventRepository.saveAndFlush(
                 IncidentEvent.comment(incident, author, request.body()));
