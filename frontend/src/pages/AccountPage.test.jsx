@@ -14,6 +14,7 @@ vi.mock('../services/incidentApi', async (importOriginal) => ({
     commented: false,
     statusChanged: false,
     slaBreached: true,
+    mentioned: true,
     emailEnabled: true,
   }),
   // The sidebar bell checks for notifications.

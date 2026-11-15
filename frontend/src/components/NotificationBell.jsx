@@ -14,6 +14,7 @@ const POLL_INTERVAL_MS = 30000
 const TYPE_ICONS = {
   ASSIGNED: '👤',
   COMMENTED: '💬',
+  MENTIONED: '@',
   STATUS_CHANGED: '🔄',
   SLA_BREACHED: '⏰',
 }

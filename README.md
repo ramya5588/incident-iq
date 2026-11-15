@@ -40,15 +40,16 @@ changed what.
   [SLA targets](#sla-targets)). Admins can make chosen priorities count
   business hours only, with holidays (see [Business hours](#business-hours)).
 - **Notifications:** a bell in the sidebar with an unread count. You're
-  notified when an incident is assigned to you, when someone comments on an
-  incident you reported or are assigned, when the status of an incident you
-  reported changes, and when an SLA deadline is missed. Missed deadlines go to
+  notified when an incident is assigned to you, when someone @mentions you,
+  when someone comments on an incident you reported or are assigned, when the
+  status of an incident you reported changes, and when an SLA deadline is
+  missed. Missed deadlines go to
   the assignee, or to every admin if nobody is assigned. You're never notified
   about your own actions.
 - **Email notifications:** on the Account page, each person chooses which
   notifications they also get by email, with a link to the incident. By
-  default assignments and missed deadlines are emailed; comments and status
-  changes are not. Emails are sent in the background after a change is saved,
+  default assignments, mentions and missed deadlines are emailed; comments and
+  status changes are not. Emails are sent in the background after a change is saved,
   so a slow or broken mail server never slows the app or loses a change (see
   [Email](#email)).
 - **Activity timeline** on every incident: creation, status and assignee
@@ -57,6 +58,10 @@ changed what.
   reporter sees, and an internal note, which only agents and admins see.
   Notes are shown in amber with an "Internal" label, and the comment box turns
   amber while you write one (see [Internal notes](#internal-notes)).
+- **@mentions:** type `@` in a comment or internal note to pick a teammate
+  from a list (arrow keys and Enter, or click). They're notified, and the
+  mention is highlighted on the timeline, more strongly when it's you (see
+  [Mentions](#mentions)).
 - **Team page** with each member's role and number of active incidents.
   Admins can add members, edit names and emails, change roles, reset
   passwords, and deactivate or reactivate members there. Deactivating ends
@@ -455,7 +460,7 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `PATCH /incidents/{id}/assignee` | agent, admin | Assign or unassign |
 | `POST /incidents/{id}/triage` | agent, admin | Run AI triage |
 | `GET /incidents/{id}/events` | signed in | Activity timeline, newest first; internal notes only for agents and admins |
-| `POST /incidents/{id}/comments` | signed in | Add a comment; `"internal": true` makes it an internal note (agents and admins only) |
+| `POST /incidents/{id}/comments` | signed in | Add a comment; `"internal": true` makes it an internal note (agents and admins only). Mention someone with `@[Name](user-id)` |
 | `GET /incidents/{id}/attachments` | signed in | The incident's attachments (names, sizes, who added them; no file data) |
 | `POST /incidents/{id}/attachments` | signed in | Attach one file (multipart field `file`); reporters only on their own incidents |
 | `GET /incidents/{id}/attachments/{attachmentId}` | signed in | The file: images inline, everything else as a download |
@@ -515,6 +520,25 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
   incident themselves.
 - **Can't change later:** a note stays internal. To tell the reporter
   something, post a reply.
+
+## Mentions
+
+- **Who can be mentioned:** active agents and admins, from any comment or
+  note. The incident's own reporter can be mentioned in a reply, but never in
+  an internal note. Reporters can't mention other reporters. The server checks
+  every mention, so these rules hold even for API calls.
+- **How they're stored:** as `@[Name](user-id)`, so a mention keeps pointing at
+  the right person. The server always writes in the person's real name. A
+  mention someone isn't allowed to make, or of an unknown or deactivated
+  person, is saved as plain text and notifies nobody.
+- **Notifications:** "Alex mentioned you on INC-012 …", or "… in an internal
+  note on …". Someone who'd also be told about the comment, such as the
+  assignee, gets just the mention. Mentioning yourself notifies nobody. Up to
+  20 people per comment.
+- **Email:** mentions are emailed by default. Turn this off under "Someone
+  mentions me" on the Account page.
+- **Length:** the 2,000-character limit counts a mention as `@Name`, as you see
+  it.
 
 ## Attachments
 

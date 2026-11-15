@@ -6,6 +6,8 @@ import {
 } from '../services/incidentApi'
 import { useCurrentUser } from '../context/currentUserContext'
 import { STATUS_LABELS, canWorkIncidents } from '../utils/roles'
+import { mentionSuggestions, splitMentions, withMentionMarkup } from '../utils/mentions'
+import MentionTextarea from './MentionTextarea'
 
 const COMMENT_MAX_LENGTH = 2000
 
@@ -79,17 +81,21 @@ function describeEvent(event) {
 /**
  * Activity timeline for an incident with a comment box. Agents and admins
  * choose between a reply (the reporter sees it) and an internal note.
+ * Typing "@" suggests people to mention. `reporterId` is the incident's
+ * reporter, who can be mentioned in replies.
  * Bump `refreshKey` to reload after the incident changes elsewhere.
  * `onCommented` is called after a comment is posted.
  */
-function IncidentTimeline({ incidentId, refreshKey, onCommented }) {
-  const { currentUser } = useCurrentUser()
+function IncidentTimeline({ incidentId, reporterId, refreshKey, onCommented }) {
+  const { currentUser, users } = useCurrentUser()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const [body, setBody] = useState('')
   const [internal, setInternal] = useState(false)
+  // People picked from the @ suggestions while writing this comment.
+  const [picked, setPicked] = useState([])
   const [posting, setPosting] = useState(false)
   const [postError, setPostError] = useState('')
   const canWriteNotes = canWorkIncidents(currentUser)
@@ -126,9 +132,12 @@ function IncidentTimeline({ incidentId, refreshKey, onCommented }) {
     setPostError('')
 
     try {
-      const comment = await addIncidentComment(incidentId, body, { internal: asNote })
+      const comment = await addIncidentComment(incidentId, withMentionMarkup(body, picked), {
+        internal: asNote,
+      })
       setEvents((current) => [comment, ...current])
       setBody('')
+      setPicked([])
       onCommented?.()
     } catch (requestError) {
       console.error(requestError)
@@ -175,7 +184,7 @@ function IncidentTimeline({ incidentId, refreshKey, onCommented }) {
             </span>
           </div>
         )}
-        <textarea
+        <MentionTextarea
           rows="3"
           aria-label={asNote ? 'Internal note' : 'Comment'}
           placeholder={
@@ -186,7 +195,19 @@ function IncidentTimeline({ incidentId, refreshKey, onCommented }) {
                 : 'Add a comment…'
           }
           value={body}
-          onChange={(event) => setBody(event.target.value)}
+          onChange={setBody}
+          suggest={(query) =>
+            mentionSuggestions(users ?? [], query, {
+              internal: asNote,
+              reporterId,
+              currentUserId: currentUser?.id,
+            })
+          }
+          onPick={(person) =>
+            setPicked((current) =>
+              current.some((item) => item.id === person.id) ? current : [...current, person]
+            )
+          }
           maxLength={COMMENT_MAX_LENGTH}
           disabled={posting}
         />
@@ -238,7 +259,20 @@ function IncidentTimeline({ incidentId, refreshKey, onCommented }) {
                       : 'timeline-note'
                   }
                 >
-                  {event.message}
+                  {event.type === 'COMMENT'
+                    ? splitMentions(event.message).map((part, index) =>
+                        part.mention ? (
+                          <span
+                            key={index}
+                            className={`mention${part.mention.id === currentUser?.id ? ' mention-me' : ''}`}
+                          >
+                            @{part.mention.name}
+                          </span>
+                        ) : (
+                          part.text
+                        )
+                      )
+                    : event.message}
                 </p>
               )}
               <time className="timeline-time" dateTime={event.createdAt}>

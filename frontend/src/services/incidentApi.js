@@ -137,7 +137,7 @@ export async function getEmailPreferences() {
     return response.data
 }
 
-/** `preferences`: { assigned, commented, statusChanged, slaBreached }. */
+/** `preferences`: { assigned, commented, mentioned, statusChanged, slaBreached }. */
 export async function saveEmailPreferences(preferences) {
     const response = await api.put('/notifications/email-preferences', preferences)
     return response.data

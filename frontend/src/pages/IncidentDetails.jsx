@@ -535,6 +535,7 @@ function IncidentDetails() {
 
             <IncidentTimeline
                 incidentId={id}
+                reporterId={incident.createdById}
                 refreshKey={timelineKey}
                 onCommented={handleCommented}
             />

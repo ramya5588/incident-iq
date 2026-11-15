@@ -62,7 +62,7 @@ describe('IncidentTimeline internal notes', () => {
 
     await user.click(screen.getByRole('radio', { name: 'Internal note' }))
     expect(screen.getByText('Only agents and admins will see this.')).toBeInTheDocument()
-    await user.type(screen.getByRole('textbox', { name: 'Internal note' }), 'Checking with networking')
+    await user.type(screen.getByRole('combobox', { name: 'Internal note' }), 'Checking with networking')
     await user.click(screen.getByRole('button', { name: 'Add internal note' }))
 
     expect(addIncidentComment).toHaveBeenCalledWith('inc-1', 'Checking with networking', {
@@ -78,7 +78,7 @@ describe('IncidentTimeline internal notes', () => {
     renderAs(USERS.admin)
     await screen.findByText(NOTE.message)
 
-    await user.type(screen.getByRole('textbox', { name: 'Comment' }), 'Try restarting')
+    await user.type(screen.getByRole('combobox', { name: 'Comment' }), 'Try restarting')
     await user.click(screen.getByRole('button', { name: 'Comment' }))
 
     expect(addIncidentComment).toHaveBeenCalledWith('inc-1', 'Try restarting', { internal: false })

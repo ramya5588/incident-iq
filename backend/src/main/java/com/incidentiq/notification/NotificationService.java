@@ -5,9 +5,12 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -106,25 +109,58 @@ public class NotificationService {
 
     /** {@code resumed}: the comment took the incident off hold. */
     public void notifyCommented(Incident incident, UserAccount author, boolean resumed) {
+        notifyCommented(incident, author, resumed, List.of());
+    }
+
+    /** {@code mentioned} were already told by a mention, so aren't told twice. */
+    public void notifyCommented(
+            Incident incident, UserAccount author, boolean resumed,
+            Collection<UserAccount> mentioned) {
+
         String message = resumed
                 ? name(author) + " replied on " + label(incident) + ", so it's back in progress"
                 : name(author) + " commented on " + label(incident);
-        send(Arrays.asList(incident.getCreatedBy(), incident.getAssignedTo()),
+        send(without(Arrays.asList(incident.getCreatedBy(), incident.getAssignedTo()), mentioned),
                 incident, NotificationType.COMMENTED, message, author);
+    }
+
+    /** People mentioned in a comment or internal note (already checked as allowed). */
+    public void notifyMentioned(
+            Incident incident, UserAccount author, List<UserAccount> mentioned, boolean internal) {
+
+        String where = internal ? " in an internal note on " : " on ";
+        send(mentioned, incident, NotificationType.MENTIONED,
+                name(author) + " mentioned you" + where + label(incident), author);
+    }
+
+    private static List<UserAccount> without(
+            List<UserAccount> recipients, Collection<UserAccount> exclude) {
+
+        Set<UUID> excluded = new HashSet<>();
+        exclude.forEach(user -> excluded.add(user.getId()));
+        List<UserAccount> remaining = new ArrayList<>();
+        for (UserAccount recipient : recipients) {
+            if (recipient != null && !excluded.contains(recipient.getId())) {
+                remaining.add(recipient);
+            }
+        }
+        return remaining;
     }
 
     /**
      * An internal note goes to the reporter and assignee, but only those who
      * can see internal notes (never someone with the USER role).
      */
-    public void notifyInternalNote(Incident incident, UserAccount author) {
+    public void notifyInternalNote(
+            Incident incident, UserAccount author, Collection<UserAccount> mentioned) {
+
         List<UserAccount> team = new ArrayList<>();
         for (UserAccount user : Arrays.asList(incident.getCreatedBy(), incident.getAssignedTo())) {
             if (user != null && user.getRole() != UserRole.USER) {
                 team.add(user);
             }
         }
-        send(team, incident, NotificationType.COMMENTED,
+        send(without(team, mentioned), incident, NotificationType.COMMENTED,
                 name(author) + " added an internal note on " + label(incident), author);
     }
 
@@ -148,6 +184,7 @@ public class NotificationService {
         return switch (type) {
             case ASSIGNED -> user.isEmailOnAssigned();
             case COMMENTED -> user.isEmailOnCommented();
+            case MENTIONED -> user.isEmailOnMentioned();
             case STATUS_CHANGED -> user.isEmailOnStatusChanged();
             case SLA_BREACHED -> user.isEmailOnSlaBreached();
         };
@@ -211,6 +248,9 @@ public class NotificationService {
         user.setEmailPreferences(
                 preferences.assigned(), preferences.commented(),
                 preferences.statusChanged(), preferences.slaBreached());
+        if (preferences.mentioned() != null) {
+            user.setEmailOnMentioned(preferences.mentioned());
+        }
         return EmailPreferences.Response.of(user, emailSettings.enabled());
     }
 

@@ -16,6 +16,11 @@ const OPTIONS = [
     hint: "Ones assigned to you, or (for admins) ones nobody's assigned.",
   },
   {
+    key: 'mentioned',
+    label: 'Someone mentions me',
+    hint: 'With @ in a comment or internal note.',
+  },
+  {
     key: 'commented',
     label: 'Someone comments',
     hint: "On incidents you reported or are assigned.",

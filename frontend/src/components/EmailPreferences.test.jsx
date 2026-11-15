@@ -15,6 +15,7 @@ const DEFAULTS = {
   commented: false,
   statusChanged: false,
   slaBreached: true,
+  mentioned: true,
   emailEnabled: true,
 }
 
@@ -51,6 +52,7 @@ describe('EmailPreferences', () => {
       commented: true,
       statusChanged: false,
       slaBreached: true,
+      mentioned: true,
     })
     expect(await screen.findByText('Email settings saved.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save email settings' })).toBeDisabled()

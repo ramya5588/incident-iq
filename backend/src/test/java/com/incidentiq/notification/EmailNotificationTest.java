@@ -206,6 +206,23 @@ class EmailNotificationTest {
     }
 
     @Test
+    void mentionsAreEmailedByDefault() throws Exception {
+        String id = createIncident("HIGH");
+        reset(mailSender);
+
+        // The reporter mentions Alex, who isn't assigned: emailed (on by default).
+        TestAuth.signInAs(reporter);
+        mockMvc.perform(post("/api/incidents/{id}/comments", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"body\": \"@[Alex](" + agent.getId() + ") help?\"}"))
+                .andExpect(status().isCreated());
+
+        SimpleMailMessage email = nextEmail();
+        assertThat(email.getTo()).containsExactly("alex@mail.test");
+        assertThat(email.getSubject()).startsWith("Riley Reporter mentioned you on INC-");
+    }
+
+    @Test
     void turningAnEmailOffStopsIt() throws Exception {
         savePreferences(agent, """
                 {"assigned": false, "commented": false, "statusChanged": false, "slaBreached": true}
@@ -257,6 +274,7 @@ class EmailNotificationTest {
                 .andExpect(jsonPath("$.commented").value(false))
                 .andExpect(jsonPath("$.statusChanged").value(false))
                 .andExpect(jsonPath("$.slaBreached").value(true))
+                .andExpect(jsonPath("$.mentioned").value(true))
                 .andExpect(jsonPath("$.emailEnabled").value(true));
 
         savePreferences(agent, "{\"assigned\": true}").andExpect(status().isBadRequest());
@@ -266,7 +284,16 @@ class EmailNotificationTest {
                 """)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.assigned").value(false))
-                .andExpect(jsonPath("$.statusChanged").value(true));
+                .andExpect(jsonPath("$.statusChanged").value(true))
+                // Left out of the request, so unchanged.
+                .andExpect(jsonPath("$.mentioned").value(true));
+
+        savePreferences(agent, """
+                {"assigned": false, "commented": true, "statusChanged": true, "slaBreached": false,
+                 "mentioned": false}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mentioned").value(false));
 
         // Only your own preferences: Riley's are untouched.
         TestAuth.signInAs(reporter);

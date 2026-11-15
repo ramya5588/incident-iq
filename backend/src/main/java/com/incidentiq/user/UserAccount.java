@@ -56,6 +56,9 @@ public class UserAccount {
     @Column(name = "email_on_sla_breached", nullable = false)
     private boolean emailOnSlaBreached = true;
 
+    @Column(name = "email_on_mentioned", nullable = false)
+    private boolean emailOnMentioned = true;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -155,6 +158,14 @@ public class UserAccount {
 
     public boolean isEmailOnSlaBreached() {
         return emailOnSlaBreached;
+    }
+
+    public boolean isEmailOnMentioned() {
+        return emailOnMentioned;
+    }
+
+    public void setEmailOnMentioned(boolean mentioned) {
+        this.emailOnMentioned = mentioned;
     }
 
     public void setEmailPreferences(

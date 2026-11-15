@@ -31,6 +31,9 @@ public class IncidentService {
             IncidentStatus.OPEN, IncidentStatus.IN_PROGRESS, IncidentStatus.ON_HOLD);
 
     private final IncidentRepository incidentRepository;
+    /** Longest comment, as people read it (mentions count as @Name). */
+    static final int COMMENT_MAX_LENGTH = 2000;
+
     private final UserAccountRepository userRepository;
     private final EntityManager entityManager;
     private final IncidentTriageClient triageClient;
@@ -322,21 +325,31 @@ public class IncidentService {
 
         Incident incident = findIncident(incidentId);
         UserAccount author = findUser(authorId);
+        boolean internal = request.isInternal();
+        if (internal && author.getRole() == UserRole.USER) {
+            throw new InternalNoteForbiddenException();
+        }
 
-        if (request.isInternal()) {
-            if (author.getRole() == UserRole.USER) {
-                throw new InternalNoteForbiddenException();
-            }
+        Mentions.Resolved mentions = Mentions.resolve(
+                request.body(), userRepository::findById,
+                user -> canBeMentioned(user, incident, internal));
+        if (Mentions.visibleText(mentions.body()).length() > COMMENT_MAX_LENGTH) {
+            throw new InvalidCommentException(
+                    "Comment must not exceed " + COMMENT_MAX_LENGTH + " characters");
+        }
+
+        if (internal) {
             // Only for the team: no change to the incident, and the
             // reporter is never told.
             IncidentEvent note = eventRepository.saveAndFlush(
-                    IncidentEvent.internalNote(incident, author, request.body()));
-            notifications.notifyInternalNote(incident, author);
+                    IncidentEvent.internalNote(incident, author, mentions.body()));
+            notifications.notifyMentioned(incident, author, mentions.mentioned(), true);
+            notifications.notifyInternalNote(incident, author, mentions.mentioned());
             return IncidentEventResponse.from(note);
         }
 
         IncidentEvent comment = eventRepository.saveAndFlush(
-                IncidentEvent.comment(incident, author, request.body()));
+                IncidentEvent.comment(incident, author, mentions.body()));
 
         // The reply they were waiting for: work resumes and the clock restarts.
         boolean resumed = incident.getStatus() == IncidentStatus.ON_HOLD
@@ -349,9 +362,25 @@ public class IncidentService {
                     "Resumed when the reporter replied", author));
             incidentRepository.saveAndFlush(incident);
         }
-        notifications.notifyCommented(incident, author, resumed);
+        notifications.notifyMentioned(incident, author, mentions.mentioned(), false);
+        notifications.notifyCommented(incident, author, resumed, mentions.mentioned());
 
         return IncidentEventResponse.from(comment);
+    }
+
+    /**
+     * Agents and admins can always be mentioned. Reporters only in a public
+     * comment on their own incident, so mentions never reach other reporters
+     * and never reveal an internal note.
+     */
+    private static boolean canBeMentioned(UserAccount user, Incident incident, boolean internal) {
+        if (!user.isActive()) {
+            return false;
+        }
+        if (user.getRole() != UserRole.USER) {
+            return true;
+        }
+        return !internal && incident.getCreatedBy().getId().equals(user.getId());
     }
 
     @Transactional(readOnly = true)
