@@ -23,6 +23,12 @@ changed what.
 - **Incident list** with search (text or incident number), status and
   priority filters, and pagination. All of it is kept in the URL, so you can
   bookmark or share a search.
+- **Bulk changes** (agents and admins): tick incidents on the list, or "select
+  all" on the page, then change their status (including On hold, with a
+  reason), priority or assignee in one go. Each incident is changed exactly as
+  a single change would, so the timeline, notifications and SLA clocks stay
+  right. If some can't be changed, the others still are, and you're told which
+  failed and why.
 - **Incident page:** edit title, description, priority and category; change
   status; assign an agent; run AI triage.
 - **Attachments:** add screenshots, PDFs and text or log files when reporting
@@ -163,7 +169,7 @@ profile.
 |---|---|---|---|
 | View incidents, report new ones, comment | ✓ | ✓ | ✓ |
 | Add and see internal notes | | ✓ | ✓ |
-| Edit details, change status, assign, run AI triage | | ✓ | ✓ |
+| Edit details, change status, assign, run AI triage, bulk changes | | ✓ | ✓ |
 | Add, edit, deactivate and reactivate members; change roles; reset passwords | | | ✓ |
 | Can be assigned incidents | | ✓ | ✓ |
 
@@ -455,6 +461,7 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `GET /incidents` | signed in | List incidents (`q`, `status`, `priority`, `overdue`, `page`, `size`). `overdue=true` keeps open or in-progress incidents past a deadline. `q` searches title, description and category, or finds an incident number such as `42` or `INC-042` |
 | `POST /incidents` | signed in | Report an incident |
 | `GET /incidents/{id}` | signed in | Get one incident |
+| `PATCH /incidents/bulk` | agent, admin | The same change for up to 100 incidents: `{ incidentIds, status?, holdReason?, holdNote?, priority?, assigneeId?, unassign? }`. Returns `{ updated, failed: [{ incidentId, message }] }` |
 | `PATCH /incidents/{id}` | agent, admin | Edit title, description, priority, category |
 | `PATCH /incidents/{id}/status` | agent, admin | Change status (`{ status }`; for `ON_HOLD` also `holdReason` and an optional `holdNote`) |
 | `PATCH /incidents/{id}/assignee` | agent, admin | Assign or unassign |

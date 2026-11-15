@@ -32,9 +32,11 @@ import jakarta.validation.constraints.Size;
 public class IncidentController {
 
     private final IncidentService service;
+    private final BulkIncidentService bulk;
 
-    public IncidentController(IncidentService service) {
+    public IncidentController(IncidentService service, BulkIncidentService bulk) {
         this.service = service;
+        this.bulk = bulk;
     }
 
     @PostMapping
@@ -77,6 +79,15 @@ public class IncidentController {
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         return service.getIncidents(status, priority, search, overdue, pageable);
+    }
+
+    /** The same status, priority or assignee change for several incidents. */
+    @PatchMapping("/bulk")
+    public BulkUpdateResponse bulkUpdate(
+            @Valid @RequestBody BulkUpdateRequest request,
+            @AuthenticationPrincipal AppUserPrincipal actor) {
+
+        return bulk.update(request, actor.id());
     }
 
     @PatchMapping("/{incidentId}")

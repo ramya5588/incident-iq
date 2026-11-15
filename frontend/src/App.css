@@ -196,6 +196,107 @@ a.nav-item {
   grid-template-columns: 2.1fr 0.9fr 0.8fr 0.9fr 1fr 1.25fr 0.8fr;
 }
 
+/* Agents and admins get a checkbox column for bulk changes. */
+.table-row.list-row.selectable {
+  grid-template-columns: 20px 2.1fr 0.9fr 0.8fr 0.9fr 1fr 1.25fr 0.8fr;
+}
+
+.table-row.list-row.selected {
+  background: #f5f7ff;
+}
+
+.list-row input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #4f46e5;
+}
+
+.bulk-bar {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  background: #eef2ff;
+}
+
+.bulk-bar fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.bulk-count {
+  display: block;
+  margin-bottom: 8px;
+  color: #3730a3;
+  font-size: 14px;
+}
+
+.bulk-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bulk-bar select,
+.bulk-bar input {
+  min-width: 150px;
+  padding: 8px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #101828;
+  font-size: 14px;
+}
+
+.bulk-bar .error-message {
+  margin: 8px 0 0;
+}
+
+.bulk-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  border: 1px solid #abefc6;
+  border-radius: 12px;
+  background: #ecfdf3;
+  color: #054f31;
+  font-size: 14px;
+}
+
+.bulk-result.has-failures {
+  border-color: #fedf89;
+  background: #fffaeb;
+  color: #93370d;
+}
+
+.bulk-result p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.bulk-result ul {
+  flex-basis: 100%;
+  order: 2;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.bulk-result button {
+  margin-left: auto;
+}
+
 .assignee {
   color: #344054;
   font-size: 14px;

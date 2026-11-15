@@ -12,6 +12,10 @@ public class InvalidAssigneeException extends RuntimeException {
                 displayName + " can't be assigned incidents: only agents and admins can.");
     }
 
+    public static InvalidAssigneeException assignAndUnassign() {
+        return new InvalidAssigneeException("Choose an assignee or unassign, not both.");
+    }
+
     public static InvalidAssigneeException deactivated(String displayName) {
         return new InvalidAssigneeException(
                 displayName + " is deactivated and can't be assigned incidents.");

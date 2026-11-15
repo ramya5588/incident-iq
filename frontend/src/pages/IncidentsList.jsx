@@ -3,6 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import { getIncidentPage } from '../services/incidentApi'
 import SlaBadge from '../components/SlaBadge'
+import BulkActionBar from '../components/BulkActionBar'
+import { useCurrentUser } from '../context/currentUserContext'
+import { canWorkIncidents } from '../utils/roles'
 import { useNow } from '../hooks/useNow'
 import { currentClock } from '../utils/sla'
 
@@ -54,6 +57,19 @@ function IncidentsList() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const { currentUser, users } = useCurrentUser()
+  const canSelect = canWorkIncidents(currentUser)
+  // Bumped to reload the list after a bulk change.
+  const [reloadKey, setReloadKey] = useState(0)
+  const [bulkResult, setBulkResult] = useState(null)
+
+  // The selection belongs to one page of one search: changing either clears it.
+  const listKey = searchParams.toString()
+  const [selection, setSelection] = useState({ listKey, ids: [] })
+  const selectedIds = selection.listKey === listKey ? selection.ids : []
+  function setSelectedIds(ids) {
+    setSelection({ listKey, ids })
+  }
 
   // What's typed in the box. It follows the URL when the URL changes from
   // elsewhere (Clear filters, back button), and updates the URL after a pause.
@@ -110,7 +126,7 @@ function IncidentsList() {
     return () => {
       cancelled = true
     }
-  }, [status, priority, q, overdue, page])
+  }, [status, priority, q, overdue, page, reloadKey])
 
   function updateParams(changes) {
     const next = new URLSearchParams(searchParams)
@@ -133,6 +149,15 @@ function IncidentsList() {
   const hasFilters = status !== '' || priority !== '' || searching || overdue
   const firstShown = totalElements === 0 ? 0 : page * PAGE_SIZE + 1
   const lastShown = page * PAGE_SIZE + incidents.length
+  const selectedIncidents = incidents.filter((incident) => selectedIds.includes(incident.id))
+  const allSelected = incidents.length > 0 && selectedIncidents.length === incidents.length
+  const rowClass = `table-row list-row${canSelect ? ' selectable' : ''}`
+
+  function toggle(id) {
+    setSelectedIds(
+      selectedIds.includes(id) ? selectedIds.filter((item) => item !== id) : [...selectedIds, id]
+    )
+  }
 
   return (
     <div className="app-shell">
@@ -251,8 +276,60 @@ function IncidentsList() {
             </span>
           </div>
 
+          {bulkResult && (
+            <div
+              className={`bulk-result${bulkResult.failures.length ? ' has-failures' : ''}`}
+              role="status"
+            >
+              <p>{bulkResult.message}</p>
+              {bulkResult.failures.length > 0 && (
+                <ul>
+                  {bulkResult.failures.map((failure) => (
+                    <li key={failure}>{failure}</li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                className="secondary-button small-button"
+                onClick={() => setBulkResult(null)}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {canSelect && selectedIncidents.length > 0 && (
+            <BulkActionBar
+              selected={selectedIncidents}
+              users={users ?? []}
+              onClear={() => setSelectedIds([])}
+              onDone={(summary) => {
+                setBulkResult(summary)
+                setSelectedIds([])
+                setReloadKey((key) => key + 1)
+              }}
+            />
+          )}
+
           <div className="incident-table">
-            <div className="table-row table-header list-row">
+            <div className={`${rowClass} table-header`}>
+              {canSelect && (
+                <span>
+                  <input
+                    type="checkbox"
+                    aria-label="Select all incidents on this page"
+                    checked={allSelected}
+                    ref={(box) => {
+                      if (box) box.indeterminate = selectedIncidents.length > 0 && !allSelected
+                    }}
+                    disabled={loading || incidents.length === 0}
+                    onChange={() =>
+                      setSelectedIds(allSelected ? [] : incidents.map((incident) => incident.id))
+                    }
+                  />
+                </span>
+              )}
               <span>Incident</span>
               <span>Category</span>
               <span>Priority</span>
@@ -287,7 +364,20 @@ function IncidentsList() {
             {!loading &&
               !error &&
               incidents.map((incident) => (
-                <div className="table-row list-row" key={incident.id}>
+                <div
+                  className={`${rowClass}${selectedIds.includes(incident.id) ? ' selected' : ''}`}
+                  key={incident.id}
+                >
+                  {canSelect && (
+                    <span>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select INC-${String(incident.incidentNumber).padStart(3, '0')}`}
+                        checked={selectedIds.includes(incident.id)}
+                        onChange={() => toggle(incident.id)}
+                      />
+                    </span>
+                  )}
                   <Link
                     className="incident-link"
                     to={`/incidents/${incident.id}`}

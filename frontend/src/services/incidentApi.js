@@ -284,6 +284,15 @@ export async function updateIncidentAssignee(id, assigneeId) {
     return response.data
 }
 
+/**
+ * The same change for several incidents: { incidentIds, status?, holdReason?,
+ * holdNote?, priority?, assigneeId?, unassign? }. Returns { updated, failed }.
+ */
+export async function bulkUpdateIncidents(changes) {
+    const response = await api.patch('/incidents/bulk', changes)
+    return response.data
+}
+
 export async function getIncidentEvents(id) {
     const response = await api.get(`/incidents/${id}/events`)
     return response.data
