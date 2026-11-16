@@ -57,6 +57,11 @@ public class Incident {
     @JoinColumn(name = "assigned_to")
     private UserAccount assignedTo;
 
+    /** The main incident, when this one was closed as its duplicate. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "duplicate_of")
+    private Incident duplicateOf;
+
     @Column(name = "ai_summary", columnDefinition = "TEXT")
     private String aiSummary;
 
@@ -375,6 +380,15 @@ public class Incident {
 
     public HoldReason getHoldReason() {
         return holdReason;
+    }
+
+    /** {@code null} clears it (undoing a merge). See MergeService for the rules. */
+    public void markDuplicateOf(Incident main) {
+        this.duplicateOf = main;
+    }
+
+    public Incident getDuplicateOf() {
+        return duplicateOf;
     }
 
     /** Rating again replaces the earlier rating. */

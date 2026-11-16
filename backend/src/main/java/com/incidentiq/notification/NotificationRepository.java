@@ -18,6 +18,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     long countByRecipientIdAndReadAtIsNull(UUID recipientId);
 
+    List<Notification> findByRecipientIdAndReadAtIsNullOrderByIdDesc(UUID recipientId, Pageable pageable);
+
     /** Marks one notification read, only if it belongs to the recipient. */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

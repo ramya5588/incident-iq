@@ -20,6 +20,11 @@ import ConfirmEmailPage from './pages/ConfirmEmailPage'
 import ReportsPage from './pages/ReportsPage'
 import AccountPage from './pages/AccountPage'
 import Sidebar from './components/Sidebar'
+import MyWork from './components/MyWork'
+import MyIncidents from './components/MyIncidents'
+import OpenTrend from './components/OpenTrend'
+import { canWorkIncidents } from './utils/roles'
+import { useCurrentUser } from './context/currentUserContext'
 import CreateIncidentModal from './components/CreateIncidentModal'
 import {
   CreateIncidentContext,
@@ -30,6 +35,8 @@ const RECENT_INCIDENT_LIMIT = 5
 
 function Dashboard() {
   const openCreateIncident = useCreateIncident()
+  const { currentUser } = useCurrentUser()
+  const canWork = canWorkIncidents(currentUser)
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -87,6 +94,8 @@ function Dashboard() {
           </button>
         </header>
 
+        {canWork ? <MyWork currentUser={currentUser} /> : <MyIncidents />}
+
         <section className="stats-grid">
           <article className="stat-card">
             <span>Open incidents</span>
@@ -133,6 +142,8 @@ function Dashboard() {
             </small>
           </article>
         </section>
+
+        {canWork && <OpenTrend />}
 
         <section className="content-card">
           <div className="section-heading">

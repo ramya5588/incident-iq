@@ -18,6 +18,7 @@ vi.mock('../services/incidentApi', async (importOriginal) => ({
   addIncidentComment: vi.fn(),
   listAttachments: vi.fn().mockResolvedValue([]),
   getWatchers: vi.fn().mockResolvedValue({ watching: false, count: 0, watchers: [] }),
+  getDuplicates: vi.fn().mockResolvedValue([]),
 }))
 
 const INCIDENT = {

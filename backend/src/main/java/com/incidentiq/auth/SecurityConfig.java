@@ -77,6 +77,13 @@ public class SecurityConfig {
                                 .hasAnyRole("AGENT", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/incidents/*/triage")
                                 .hasAnyRole("AGENT", "ADMIN")
+                        .requestMatchers("/api/incidents/*/duplicate-of")
+                                .hasAnyRole("AGENT", "ADMIN")
+                        // So is the "My work" dashboard (everyone gets "my incidents").
+                        .requestMatchers("/api/dashboard/my-work").hasAnyRole("AGENT", "ADMIN")
+                        // So are saved replies (the service checks who can change which).
+                        .requestMatchers("/api/saved-replies", "/api/saved-replies/**")
+                                .hasAnyRole("AGENT", "ADMIN")
                         // Reports are for the people who work incidents.
                         .requestMatchers("/api/reports/**").hasAnyRole("AGENT", "ADMIN")
                         .anyRequest().authenticated())

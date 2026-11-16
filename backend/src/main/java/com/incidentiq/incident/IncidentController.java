@@ -36,12 +36,15 @@ public class IncidentController {
     private final IncidentService service;
     private final BulkIncidentService bulk;
     private final WatcherService watchers;
+    private final MergeService merges;
 
     public IncidentController(
-            IncidentService service, BulkIncidentService bulk, WatcherService watchers) {
+            IncidentService service, BulkIncidentService bulk, WatcherService watchers,
+            MergeService merges) {
         this.service = service;
         this.bulk = bulk;
         this.watchers = watchers;
+        this.merges = merges;
     }
 
     @PostMapping
@@ -87,6 +90,31 @@ public class IncidentController {
 
         return service.getIncidents(
                 status, priority, search, overdue, watching ? actor.id() : null, pageable);
+    }
+
+    /** Closes this incident as a duplicate of another (agents and admins). */
+    @PutMapping("/{incidentId}/duplicate-of")
+    public IncidentResponse markDuplicate(
+            @PathVariable UUID incidentId,
+            @Valid @RequestBody MarkDuplicateRequest request,
+            @AuthenticationPrincipal AppUserPrincipal actor) {
+
+        return merges.markDuplicate(incidentId, request.mainIncidentId(), actor.id());
+    }
+
+    /** Undoes it: no longer a duplicate, and reopened. */
+    @DeleteMapping("/{incidentId}/duplicate-of")
+    public IncidentResponse undoDuplicate(
+            @PathVariable UUID incidentId,
+            @AuthenticationPrincipal AppUserPrincipal actor) {
+
+        return merges.undo(incidentId, actor.id());
+    }
+
+    /** The incidents merged into this one. */
+    @GetMapping("/{incidentId}/duplicates")
+    public List<MergeService.DuplicateResponse> duplicates(@PathVariable UUID incidentId) {
+        return merges.duplicates(incidentId);
     }
 
     /** The reporter rates a resolved incident, 1 to 5 (can be changed later). */

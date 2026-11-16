@@ -28,6 +28,9 @@ public record IncidentResponse(
         Integer satisfactionScore,
         String satisfactionComment,
         Instant ratedAt,
+        UUID duplicateOfId,
+        Long duplicateOfNumber,
+        String duplicateOfTitle,
         IncidentSla sla) {
 
     public static IncidentResponse from(Incident incident, IncidentSla sla) {
@@ -60,6 +63,9 @@ public record IncidentResponse(
                 incident.getSatisfactionScore(),
                 incident.getSatisfactionComment(),
                 incident.getRatedAt(),
+                incident.getDuplicateOf() == null ? null : incident.getDuplicateOf().getId(),
+                incident.getDuplicateOf() == null ? null : incident.getDuplicateOf().getIncidentNumber(),
+                incident.getDuplicateOf() == null ? null : incident.getDuplicateOf().getTitle(),
                 sla);
     }
 }

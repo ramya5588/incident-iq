@@ -177,6 +177,14 @@ public class NotificationService {
                 name(author) + " added an internal note on " + label(incident), author);
     }
 
+    /** The duplicate's reporter and watchers learn where to follow along. */
+    public void notifyMerged(Incident duplicate, Incident main, UserAccount actor) {
+        send(withWatchers(duplicate, List.of(duplicate.getCreatedBy())), duplicate,
+                NotificationType.STATUS_CHANGED,
+                name(actor) + " closed " + label(duplicate) + " as a duplicate of " + label(main)
+                        + ". Updates continue there.", actor);
+    }
+
     public void notifyStatusChanged(
             Incident incident, IncidentStatus status, UserAccount actor) {
 

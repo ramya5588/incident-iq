@@ -12,6 +12,7 @@ import IncidentEditForm from '../components/IncidentEditForm'
 import IncidentAttachments from '../components/IncidentAttachments'
 import WatchButton from '../components/WatchButton'
 import SatisfactionCard from '../components/SatisfactionCard'
+import DuplicatePanel from '../components/DuplicatePanel'
 import { useCurrentUser } from '../context/currentUserContext'
 import {
     HOLD_REASONS,
@@ -272,6 +273,15 @@ function IncidentDetails() {
                     </p>
 
                     <WatchButton incidentId={id} />
+
+                    <DuplicatePanel
+                        incident={incident}
+                        canWork={canWork}
+                        onChanged={(updated) => {
+                            setIncident(updated)
+                            refreshTimeline()
+                        }}
+                    />
 
                     {editMessage && (
                         <p className="status-message">{editMessage}</p>
@@ -550,6 +560,7 @@ function IncidentDetails() {
 
             <IncidentTimeline
                 incidentId={id}
+                incidentNumber={incident.incidentNumber}
                 reporterId={incident.createdById}
                 refreshKey={timelineKey}
                 onCommented={handleCommented}

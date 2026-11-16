@@ -147,6 +147,13 @@ public class IncidentEvent {
         return new IncidentEvent(incident, type, null, name, null, actor);
     }
 
+    /** A merge or undo; {@code otherNumber} is the other incident ("INC-009"). */
+    public static IncidentEvent merge(
+            Incident incident, IncidentEventType type, String otherNumber, UserAccount actor) {
+
+        return new IncidentEvent(incident, type, null, otherNumber, null, actor);
+    }
+
     public static IncidentEvent rated(
             Incident incident, int score, String comment, UserAccount reporter) {
 

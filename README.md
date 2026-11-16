@@ -9,13 +9,23 @@ changed what.
 ## Features
 
 - **Dashboard** with live counts (open, in progress, resolved today, SLA
-  breached, AI-triaged) and the latest incidents.
+  breached, AI-triaged) and the latest incidents, plus:
+  - **My work** (agents and admins):
+    - your open and in-progress incidents, the one due soonest first
+    - your incidents on hold, with the reason and how long they've waited
+    - the unassigned queue, with **Take it**
+    - incidents with unread notifications for you
+  - **Open incidents, last 30 days:** how many were still open at the end of
+    each day (agents and admins; hover or use the arrow keys, or show a table).
+  - **Your incidents** (reporters): what you reported, with the ones waiting
+    on your reply flagged.
 - **Reports** (agents and admins), for the last 7, 30 or 90 days or a custom
   range, optionally for one priority:
   - **Headline numbers:** incidents reported and resolved, median time to
     first response and to resolve, the share of response and resolution SLAs
     met, how many are overdue now, and satisfaction (the average rating given
-    in the period, and the share of 4s and 5s).
+    in the period, and the share of 4s and 5s). Duplicates are left out of
+    every number, so one problem reported three times counts once.
   - **Charts and tables:** reported vs resolved per day (hover, arrow keys or
     a table), SLA met vs missed by priority, top categories, and current open
     work per assignee.
@@ -24,6 +34,15 @@ changed what.
 - **Incident list** with search (text or incident number), status and
   priority filters, and pagination. All of it is kept in the URL, so you can
   bookmark or share a search.
+- **Duplicates** (agents and admins): "Mark as duplicate…" closes an incident
+  as a duplicate of another, the main one. Its reporter and watchers follow the
+  main incident from then on, and the merge can be undone (see
+  [Duplicates](#duplicates)).
+- **Saved replies** (agents and admins): reusable text inserted into a
+  comment or internal note with one click from "Saved replies" next to the
+  comment box. `{reporter}`, `{incident}` and `{agent}` are filled in. Admins
+  manage replies shared with the team; everyone can keep personal ones (see
+  [Saved replies](#saved-replies)).
 - **Satisfaction ratings:** once an incident is resolved or closed, its
   reporter rates how it was handled from 1 to 5 stars, with an optional
   comment, and can change it later. The team sees the rating on the incident
@@ -470,6 +489,16 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `GET /incidents` | signed in | List incidents (`q`, `status`, `priority`, `overdue`, `page`, `size`). `overdue=true` keeps open or in-progress incidents past a deadline. `q` searches title, description and category, or finds an incident number such as `42` or `INC-042` |
 | `POST /incidents` | signed in | Report an incident |
 | `GET /incidents/{id}` | signed in | Get one incident |
+| `GET /dashboard/my-work` | agent, admin | `{ dueSoon, waiting, unassigned, unassignedTotal, unread }` for the signed-in person |
+| `GET /dashboard/my-incidents` | signed in | The incidents you reported, most recently updated first |
+| `GET /reports/open-trend?days=30&timeZone=` | agent, admin | Open incidents at the end of each day (up to 90 days; today's is now) |
+| `PUT /incidents/{id}/duplicate-of` | agent, admin | Close it as a duplicate: `{ mainIncidentId }` |
+| `DELETE /incidents/{id}/duplicate-of` | agent, admin | Undo that: no longer a duplicate, and reopened |
+| `GET /incidents/{id}/duplicates` | signed in | The incidents merged into this one |
+| `GET /saved-replies` | agent, admin | Shared replies, then your personal ones; each says whether you can edit it |
+| `POST /saved-replies` | agent, admin | Add one: `{ title, body, personal }`. Only admins can add shared ones (`personal: false`) |
+| `PUT /saved-replies/{id}` | agent, admin | Change the title and text: admins for shared replies, the owner for personal ones |
+| `DELETE /saved-replies/{id}` | agent, admin | Delete it (same rule) |
 | `PUT /incidents/{id}/rating` | the reporter | Rate a resolved or closed incident: `{ score: 1-5, comment? }`. Rating again replaces it |
 | `GET /incidents/{id}/watchers` | signed in | `{ watching, count, watchers }`; `watchers` (names) only for agents and admins |
 | `PUT /incidents/{id}/watchers/me` | signed in | Start watching (does nothing if you already are) |
@@ -540,6 +569,37 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
   incident themselves.
 - **Can't change later:** a note stays internal. To tell the reporter
   something, post a reply.
+
+## Duplicates
+
+- **Marking one:** on the duplicate, click **Mark as duplicate…** and enter the
+  main incident's number (INC-009 or just 9). You confirm before anything
+  changes.
+- **What happens:**
+  - The duplicate is closed and links to the main incident.
+  - Both timelines record the merge.
+  - The duplicate's reporter and watchers start watching the main incident and
+    are told where updates continue.
+  - The main incident lists its merged duplicates.
+- **Not allowed:** an incident can't be a duplicate of itself, of an incident
+  that's itself a duplicate, or become a duplicate while others are merged into
+  it. So there are no chains or loops.
+- **Undo:** **Undo** on the duplicate reopens it. People who started watching
+  the main incident keep watching it, and can stop with **Watch**.
+- **Elsewhere:** the incident list shows a "Duplicate" badge. Reports and the
+  CSV export leave duplicates out.
+
+## Saved replies
+
+- **Where:** manage them on the **Account** page; use them from **Saved
+  replies** next to the comment box on an incident. Picking one inserts it at
+  the cursor, so you can edit it before posting, as a reply or an internal note.
+- **Placeholders:** `{reporter}` (the reporter's name), `{incident}` (for
+  example INC-012) and `{agent}` (your name) are filled in when inserted.
+- **Shared and personal:** admins add, change and delete replies shared with
+  the whole team. Agents and admins can each keep up to 50 personal replies
+  that nobody else sees, not even admins.
+- **Who:** agents and admins only. Reporters never see the button or the API.
 
 ## Watching
 

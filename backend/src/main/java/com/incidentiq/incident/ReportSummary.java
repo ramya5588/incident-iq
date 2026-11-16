@@ -46,6 +46,10 @@ public record ReportSummary(
         }
     }
 
+    /** How many incidents were still open (not resolved or closed) at the end of a day. */
+    public record OpenDay(LocalDate date, long open) {
+    }
+
     /** Reported and resolved on one day, in the report's time zone. */
     public record Day(LocalDate date, long reported, long resolved) {
     }

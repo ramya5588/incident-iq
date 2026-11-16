@@ -16,6 +16,38 @@ public interface IncidentRepository
 
     long countByStatus(IncidentStatus status);
 
+    boolean existsByDuplicateOfId(UUID mainId);
+
+    /** Your incidents by the deadline that matters next: respond-by until picked up, then resolve-by. */
+    @org.springframework.data.jpa.repository.Query("""
+            select i from Incident i
+             where i.assignedTo.id = :userId and i.status in :statuses
+             order by case when i.firstRespondedAt is null then i.respondBy else i.resolveBy end, i.incidentNumber""")
+    List<Incident> findAssignedByNextDeadline(
+            UUID userId, java.util.Collection<IncidentStatus> statuses,
+            org.springframework.data.domain.Pageable pageable);
+
+    List<Incident> findByAssignedToIdAndStatusOrderByOnHoldSinceAsc(
+            UUID userId, IncidentStatus status, org.springframework.data.domain.Pageable pageable);
+
+    /** Oldest first: the queue nobody has picked up (duplicates aren't work). */
+    @org.springframework.data.jpa.repository.Query("""
+            select i from Incident i
+             where i.assignedTo is null and i.status in :statuses and i.duplicateOf is null
+             order by i.createdAt, i.incidentNumber""")
+    List<Incident> findUnassigned(
+            java.util.Collection<IncidentStatus> statuses, org.springframework.data.domain.Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Query("""
+            select count(i) from Incident i
+             where i.assignedTo is null and i.status in :statuses and i.duplicateOf is null""")
+    long countUnassigned(java.util.Collection<IncidentStatus> statuses);
+
+    List<Incident> findByCreatedByIdAndDuplicateOfIsNullOrderByUpdatedAtDesc(
+            UUID userId, org.springframework.data.domain.Pageable pageable);
+
+    List<Incident> findByDuplicateOfIdOrderByIncidentNumber(UUID mainId);
+
     List<Incident> findByAssignedToIdAndStatusIn(
             UUID assigneeId, Collection<IncidentStatus> statuses);
 

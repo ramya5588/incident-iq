@@ -2,6 +2,8 @@ import { useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import EmailPreferences from '../components/EmailPreferences'
 import ChangeEmail from '../components/ChangeEmail'
+import SavedRepliesManager from '../components/SavedRepliesManager'
+import { canWorkIncidents, isAdmin } from '../utils/roles'
 import { useCurrentUser } from '../context/currentUserContext'
 import {
   changeOwnPassword,
@@ -185,6 +187,8 @@ function AccountPage() {
         <ChangeEmail currentEmail={currentUser.email} onChanged={handleDetailsChanged} />
 
         <EmailPreferences email={currentUser.email} />
+
+        {canWorkIncidents(currentUser) && <SavedRepliesManager admin={isAdmin(currentUser)} />}
 
         <section className="content-card account-card">
           <div className="section-heading">

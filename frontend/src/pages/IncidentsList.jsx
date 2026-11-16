@@ -418,6 +418,11 @@ function IncidentsList() {
 
                   <span className="status">
                     {(incident.status ?? 'OPEN').replaceAll('_', ' ')}
+                    {incident.duplicateOfId && (
+                      <span className="duplicate-badge" title={`Duplicate of INC-${String(incident.duplicateOfNumber).padStart(3, '0')}`}>
+                        Duplicate
+                      </span>
+                    )}
                   </span>
 
                   <span

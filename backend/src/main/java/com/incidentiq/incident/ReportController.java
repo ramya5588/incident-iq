@@ -2,6 +2,7 @@ package com.incidentiq.incident;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
@@ -35,6 +36,15 @@ public class ReportController {
             @RequestParam(required = false) IncidentPriority priority) {
 
         return service.summary(from, to, timeZone, priority);
+    }
+
+    /** Open incidents at the end of each of the last {@code days} days (dashboard trend). */
+    @GetMapping("/open-trend")
+    public List<ReportSummary.OpenDay> openTrend(
+            @RequestParam(defaultValue = "30") int days,
+            @RequestParam(required = false) String timeZone) {
+
+        return service.openTrend(days, timeZone);
     }
 
     @GetMapping("/incidents.csv")

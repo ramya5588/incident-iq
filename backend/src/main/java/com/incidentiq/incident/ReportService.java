@@ -104,8 +104,9 @@ public class ReportService {
         return params;
     }
 
+    /** The priority filter, and duplicates left out (they're counted with their main incident). */
     private static String priorityFilter(IncidentPriority priority) {
-        return priority == null ? "" : " AND i.priority = :priority";
+        return " AND i.duplicate_of IS NULL" + (priority == null ? "" : " AND i.priority = :priority");
     }
 
     @Transactional(readOnly = true)
@@ -169,6 +170,55 @@ public class ReportService {
                 topCategories(params, where),
                 workload(params, priority),
                 satisfaction(params, priority));
+    }
+
+    /** Most days the open-incidents trend covers. */
+    static final int MAX_TREND_DAYS = 90;
+
+    /**
+     * Incidents open at the end of each of the last {@code days} days
+     * (today's "end" is now), in the given time zone. Duplicates aren't
+     * counted. An incident counts as open from when it's reported until it's
+     * resolved, or closed without being resolved.
+     */
+    @Transactional(readOnly = true)
+    public List<ReportSummary.OpenDay> openTrend(int days, String zoneId) {
+        if (days < 1 || days > MAX_TREND_DAYS) {
+            throw new InvalidReportException("The trend covers 1 to " + MAX_TREND_DAYS + " days.");
+        }
+        Instant now = clock.instant();
+        ZoneId zone = Range.of(LocalDate.now(), LocalDate.now(), zoneId).zone();
+        LocalDate today = LocalDate.ofInstant(now, zone);
+        LocalDate first = today.minusDays(days - 1L);
+
+        List<Instant> ends = new ArrayList<>();
+        for (LocalDate day = first; !day.isAfter(today); day = day.plusDays(1)) {
+            Instant end = day.plusDays(1).atStartOfDay(zone).toInstant();
+            ends.add(end.isAfter(now) ? now : end);
+        }
+
+        List<Instant[]> spans = jdbc.query("""
+                SELECT i.created_at,
+                       COALESCE(i.resolved_at, CASE WHEN i.status = 'CLOSED' THEN i.updated_at END) AS ended
+                FROM incidents i
+                WHERE i.duplicate_of IS NULL AND i.created_at < :last
+                  AND (COALESCE(i.resolved_at, CASE WHEN i.status = 'CLOSED' THEN i.updated_at END) IS NULL
+                       OR COALESCE(i.resolved_at, CASE WHEN i.status = 'CLOSED' THEN i.updated_at END) >= :first)
+                """, new MapSqlParameterSource()
+                        .addValue("first", java.sql.Timestamp.from(ends.get(0)))
+                        .addValue("last", java.sql.Timestamp.from(ends.get(ends.size() - 1))),
+                (row, number) -> new Instant[] {instant(row, "created_at"), instant(row, "ended")});
+
+        List<ReportSummary.OpenDay> result = new ArrayList<>();
+        LocalDate day = first;
+        for (Instant end : ends) {
+            long open = spans.stream()
+                    .filter(span -> span[0].isBefore(end) && (span[1] == null || !span[1].isBefore(end)))
+                    .count();
+            result.add(new ReportSummary.OpenDay(day, open));
+            day = day.plusDays(1);
+        }
+        return result;
     }
 
     private ReportSummary.Satisfaction satisfaction(MapSqlParameterSource params, IncidentPriority priority) {

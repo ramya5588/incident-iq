@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   addIncidentComment,
   describeApiError,
@@ -8,6 +8,8 @@ import { useCurrentUser } from '../context/currentUserContext'
 import { STATUS_LABELS, canWorkIncidents } from '../utils/roles'
 import { mentionSuggestions, splitMentions, withMentionMarkup } from '../utils/mentions'
 import MentionTextarea from './MentionTextarea'
+import SavedReplyPicker from './SavedReplyPicker'
+import { fillPlaceholders } from '../utils/savedReplies'
 
 const COMMENT_MAX_LENGTH = 2000
 
@@ -71,6 +73,14 @@ function describeEvent(event) {
       return `${actor} attached ${event.toValue}`
     case 'ATTACHMENT_REMOVED':
       return `${actor} removed the attachment ${event.toValue}`
+    case 'MERGED_INTO':
+      return `${actor} closed this as a duplicate of ${event.toValue}`
+    case 'DUPLICATE_MERGED':
+      return `${actor} merged ${event.toValue} into this incident as a duplicate`
+    case 'UNMERGED':
+      return `${actor} undid the merge: no longer a duplicate of ${event.toValue}`
+    case 'DUPLICATE_UNMERGED':
+      return `${actor} undid the merge: ${event.toValue} is no longer a duplicate of this`
     case 'SATISFACTION_RATED':
       return `${actor} rated this ${event.toValue}/5`
     case 'COMMENT':
@@ -88,7 +98,7 @@ function describeEvent(event) {
  * Bump `refreshKey` to reload after the incident changes elsewhere.
  * `onCommented` is called after a comment is posted.
  */
-function IncidentTimeline({ incidentId, reporterId, refreshKey, onCommented }) {
+function IncidentTimeline({ incidentId, incidentNumber, reporterId, refreshKey, onCommented }) {
   const { currentUser, users } = useCurrentUser()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -101,6 +111,27 @@ function IncidentTimeline({ incidentId, reporterId, refreshKey, onCommented }) {
   const [posting, setPosting] = useState(false)
   const [postError, setPostError] = useState('')
   const canWriteNotes = canWorkIncidents(currentUser)
+  const commentBox = useRef(null)
+
+  /** Puts a saved reply in at the cursor, with its placeholders filled in. */
+  function insertSavedReply(reply) {
+    const reporter = users?.find((user) => user.id === reporterId)
+    const text = fillPlaceholders(reply.body, {
+      reporter: reporter?.displayName,
+      incident: incidentNumber == null ? undefined : `INC-${String(incidentNumber).padStart(3, '0')}`,
+      agent: currentUser?.displayName,
+    })
+    const box = commentBox.current
+    const start = box?.selectionStart ?? body.length
+    const end = box?.selectionEnd ?? body.length
+    const next = (body.slice(0, start) + text + body.slice(end)).slice(0, COMMENT_MAX_LENGTH)
+    setBody(next)
+    const caret = Math.min(start + text.length, next.length)
+    requestAnimationFrame(() => {
+      box?.focus()
+      box?.setSelectionRange(caret, caret)
+    })
+  }
   const asNote = canWriteNotes && internal
 
   useEffect(() => {
@@ -187,6 +218,7 @@ function IncidentTimeline({ incidentId, reporterId, refreshKey, onCommented }) {
           </div>
         )}
         <MentionTextarea
+          textareaRef={commentBox}
           rows="3"
           aria-label={asNote ? 'Internal note' : 'Comment'}
           placeholder={
@@ -215,6 +247,7 @@ function IncidentTimeline({ incidentId, reporterId, refreshKey, onCommented }) {
         />
 
         <div className="comment-actions">
+          {canWriteNotes && <SavedReplyPicker onPick={insertSavedReply} disabled={posting} />}
           <span className="comment-author">
             Commenting as <strong>{currentUser?.displayName}</strong>
           </span>

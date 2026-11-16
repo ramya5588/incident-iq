@@ -83,6 +83,12 @@ public class IncidentService {
         return IncidentResponse.from(incident, IncidentSla.of(incident, now(), calendar));
     }
 
+    /** Responses for a list, loading the SLA calendars once. */
+    List<IncidentResponse> responses(List<Incident> list) {
+        SlaCalendars calendars = businessHours.calendars();
+        return list.stream().map(incident -> toResponse(incident, calendars)).toList();
+    }
+
     private SlaCalendar calendarFor(Incident incident) {
         return businessHours.calendars().forPriority(incident.getPriority());
     }

@@ -5,21 +5,26 @@ const WIDTH = 720
 const HEIGHT = 220
 const PAD = { top: 12, right: 16, bottom: 28, left: 36 }
 
-const SERIES = [
+const REPORTED_RESOLVED = [
   { key: 'reported', label: 'Reported', className: 'series-1' },
   { key: 'resolved', label: 'Resolved', className: 'series-2' },
 ]
 
 /**
- * Incidents reported and resolved per day: two lines, a crosshair with a
- * tooltip for every series at the hovered day (mouse or arrow keys), and a
- * table view with the same numbers.
+ * Numbers per day as lines (by default, incidents reported and resolved), a
+ * crosshair with a tooltip for every series at the hovered day (mouse or
+ * arrow keys), and a table view with the same numbers. A single series gets
+ * no legend: the card's title names it.
  */
-function DailyChart({ days }) {
+function DailyChart({
+  days,
+  series: SERIES = REPORTED_RESOLVED,
+  label = 'Incidents reported and resolved per day. Use the table view for exact numbers.',
+}) {
   const [active, setActive] = useState(null)
   const [showTable, setShowTable] = useState(false)
 
-  const { max, ticks } = countTicks(Math.max(0, ...days.flatMap((d) => [d.reported, d.resolved])))
+  const { max, ticks } = countTicks(Math.max(0, ...days.flatMap((d) => SERIES.map((s) => d[s.key]))))
   const plotWidth = WIDTH - PAD.left - PAD.right
   const plotHeight = HEIGHT - PAD.top - PAD.bottom
   const x = (index) => PAD.left + (days.length === 1 ? plotWidth / 2 : (index / (days.length - 1)) * plotWidth)
@@ -50,20 +55,22 @@ function DailyChart({ days }) {
 
   return (
     <figure className="report-chart">
-      <div className="chart-legend" aria-hidden="true">
-        {SERIES.map((series) => (
-          <span key={series.key}>
-            <i className={`legend-line ${series.className}`} />
-            {series.label}
-          </span>
-        ))}
-      </div>
+      {SERIES.length > 1 && (
+        <div className="chart-legend" aria-hidden="true">
+          {SERIES.map((series) => (
+            <span key={series.key}>
+              <i className={`legend-line ${series.className}`} />
+              {series.label}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="chart-frame">
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           role="img"
-          aria-label="Incidents reported and resolved per day. Use the table view for exact numbers."
+          aria-label={label}
           tabIndex={0}
           onPointerMove={(event) => setActive(indexAt(event))}
           onPointerLeave={() => setActive(null)}
@@ -136,16 +143,20 @@ function DailyChart({ days }) {
             <thead>
               <tr>
                 <th scope="col">Day</th>
-                <th scope="col">Reported</th>
-                <th scope="col">Resolved</th>
+                {SERIES.map((series) => (
+                  <th key={series.key} scope="col">
+                    {series.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {days.map((day) => (
                 <tr key={day.date}>
                   <th scope="row">{shortDate(day.date)}</th>
-                  <td>{day.reported}</td>
-                  <td>{day.resolved}</td>
+                  {SERIES.map((series) => (
+                    <td key={series.key}>{day[series.key]}</td>
+                  ))}
                 </tr>
               ))}
             </tbody>

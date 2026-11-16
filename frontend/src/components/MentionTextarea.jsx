@@ -6,7 +6,7 @@ import { mentionQueryAt } from '../utils/mentions'
  * people to offer; picking one writes "@Name " into the text and calls
  * `onPick(person)`. Arrow keys move, Enter or Tab picks, Escape closes.
  */
-function MentionTextarea({ value, onChange, suggest, onPick, ...textareaProps }) {
+function MentionTextarea({ value, onChange, suggest, onPick, textareaRef, ...textareaProps }) {
   const [query, setQuery] = useState(null)
   const [active, setActive] = useState(0)
   const textarea = useRef(null)
@@ -58,7 +58,10 @@ function MentionTextarea({ value, onChange, suggest, onPick, ...textareaProps })
     <div className="mention-input">
       <textarea
         {...textareaProps}
-        ref={textarea}
+        ref={(element) => {
+          textarea.current = element
+          if (textareaRef) textareaRef.current = element
+        }}
         role="combobox"
         aria-autocomplete="list"
         aria-expanded={open}

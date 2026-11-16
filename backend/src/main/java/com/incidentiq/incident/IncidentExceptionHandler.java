@@ -13,7 +13,8 @@ public class IncidentExceptionHandler {
     @ExceptionHandler({
             UserNotFoundException.class,
             IncidentNotFoundException.class,
-            AttachmentNotFoundException.class
+            AttachmentNotFoundException.class,
+            com.incidentiq.reply.SavedReplyNotFoundException.class
     })
     public ResponseEntity<ApiError> handleNotFound(
             RuntimeException exception) {
@@ -33,7 +34,8 @@ public class IncidentExceptionHandler {
             InvalidBusinessHoursException.class,
             InvalidReportException.class,
             InvalidAttachmentException.class,
-            InvalidCommentException.class})
+            InvalidCommentException.class,
+            InvalidMergeException.class})
     public ResponseEntity<ApiError> handleBadRequest(
             RuntimeException exception) {
 
@@ -49,7 +51,8 @@ public class IncidentExceptionHandler {
     @ExceptionHandler({
             AttachmentForbiddenException.class,
             InternalNoteForbiddenException.class,
-            RatingNotAllowedException.class})
+            RatingNotAllowedException.class,
+            com.incidentiq.reply.SavedReplyForbiddenException.class})
     public ResponseEntity<ApiError> handleForbidden(RuntimeException exception) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(
                 Instant.now(), HttpStatus.FORBIDDEN.value(), "Forbidden", exception.getMessage()));

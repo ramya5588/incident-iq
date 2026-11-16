@@ -194,6 +194,65 @@ export async function getIncidentPage({
     return response.data
 }
 
+/** Agents and admins: { dueSoon, waiting, unassigned, unassignedTotal, unread }. */
+export async function getMyWork() {
+    const response = await api.get('/dashboard/my-work')
+    return response.data
+}
+
+/** The incidents you reported, most recently updated first. */
+export async function getMyIncidents() {
+    const response = await api.get('/dashboard/my-incidents')
+    return response.data
+}
+
+/** [{ date, open }] for the last `days` days, in the browser's time zone. */
+export async function getOpenTrend(days = 30) {
+    const response = await api.get('/reports/open-trend', {
+        params: { days, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+    })
+    return response.data
+}
+
+/** Closes an incident as a duplicate of `mainIncidentId`. Returns the incident. */
+export async function markDuplicate(incidentId, mainIncidentId) {
+    const response = await api.put(`/incidents/${incidentId}/duplicate-of`, { mainIncidentId })
+    return response.data
+}
+
+/** No longer a duplicate; it's reopened. Returns the incident. */
+export async function undoDuplicate(incidentId) {
+    const response = await api.delete(`/incidents/${incidentId}/duplicate-of`)
+    return response.data
+}
+
+/** The incidents merged into this one: [{ id, incidentNumber, title }]. */
+export async function getDuplicates(incidentId) {
+    const response = await api.get(`/incidents/${incidentId}/duplicates`)
+    return response.data
+}
+
+/** Shared replies, then your personal ones (agents and admins). */
+export async function listSavedReplies() {
+    const response = await api.get('/saved-replies')
+    return response.data
+}
+
+/** { title, body, personal } — only admins can add shared (personal: false) ones. */
+export async function createSavedReply(reply) {
+    const response = await api.post('/saved-replies', reply)
+    return response.data
+}
+
+export async function updateSavedReply(id, { title, body }) {
+    const response = await api.put(`/saved-replies/${id}`, { title, body })
+    return response.data
+}
+
+export async function deleteSavedReply(id) {
+    await api.delete(`/saved-replies/${id}`)
+}
+
 /** The reporter rates a resolved incident: { score: 1-5, comment }. Returns the incident. */
 export async function rateIncident(incidentId, { score, comment }) {
     const response = await api.put(`/incidents/${incidentId}/rating`, { score, comment })
