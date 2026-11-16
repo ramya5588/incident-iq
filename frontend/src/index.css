@@ -1,9 +1,265 @@
+/*
+ * Theme colours. Light values are the app's original colours, except a few
+ * greys and accent text darkened to meet WCAG AA (4.5:1) on every background
+ * they sit on; dark ones are chosen per role (surface, text, border, status,
+ * chart). The theme follows
+ * the system unless the Account page sets data-theme="light" or "dark" on
+ * <html>. Token names say how a colour is used and its light value.
+ */
+:root {
+  color-scheme: light;
+  --bg-2a78d6: #2a78d6;
+  --bg-cbd5e1: #cbd5e1;
+  --bg-dcfce7: #dcfce7;
+  --bg-e0e7ff: #e0e7ff;
+  --bg-e0f2fe: #e0f2fe;
+  --bg-e2e8f0: #e2e8f0;
+  --bg-eb6834: #eb6834;
+  --bg-ecfdf3: #ecfdf3;
+  --bg-ede9fe: #ede9fe;
+  --bg-eef2ff: #eef2ff;
+  --bg-f1f5f9: #f1f5f9;
+  --bg-f2f4f7: #f2f4f7;
+  --bg-f4f1ff: #f4f1ff;
+  --bg-f4f7fb: #f4f7fb;
+  --bg-f4f7fc: #f4f7fc;
+  --bg-f5f7fb: #f5f7fb;
+  --bg-f5f7ff: #f5f7ff;
+  --bg-f8fafc: #f8fafc;
+  --bg-f9fafb: #f9fafb;
+  --bg-fcfcfd: #fcfcfd;
+  --bg-fee2e2: #fee2e2;
+  --bg-fef0c7: #fef0c7;
+  --bg-fef3c7: #fef3c7;
+  --bg-ffedd5: #ffedd5;
+  --bg-fff5f5: #fff5f5;
+  --bg-fffaeb: #fffaeb;
+  --bg-ffffff: #ffffff;
+  --border-818cf8: #818cf8;
+  --border-abefc6: #abefc6;
+  --border-c7d2fe: #c7d2fe;
+  --border-d0d5dd: #d0d5dd;
+  --border-dbe2ea: #dbe2ea;
+  --border-e2e8f0: #e2e8f0;
+  --border-e4e7ec: #e4e7ec;
+  --border-eaecf0: #eaecf0;
+  --border-eef2f6: #eef2f6;
+  --border-f2f4f7: #f2f4f7;
+  --border-fdb022: #fdb022;
+  --border-fecaca: #fecaca;
+  --border-fedf89: #fedf89;
+  --border-hairline: rgba(11, 11, 11, 0.1);
+  --fill-2a78d6: #2a78d6;
+  --fill-eb6834: #eb6834;
+  --stroke-2a78d6: #2a78d6;
+  --stroke-c3c2b7: #c3c2b7;
+  --stroke-e1e0d9: #e1e0d9;
+  --stroke-eb6834: #eb6834;
+  --stroke-ffffff: #ffffff;
+  --text-054f31: #054f31;
+  --text-067647: #067647;
+  --text-075985: #075985;
+  --text-0b0b0b: #0b0b0b;
+  --text-101828: #101828;
+  --text-166534: #166534;
+  --text-172033: #172033;
+  --text-334155: #334155;
+  --text-344054: #344054;
+  --text-3730a3: #3730a3;
+  --text-4338ca: #4338ca;
+  --text-475467: #475467;
+  --text-475569: #475569;
+  --text-4f46e5: #4f46e5;
+  --text-52514e: #52514e;
+  --text-5547e8: #5547e8;
+  --text-5b21b6: #5b21b6;
+  --text-6366f1: #5557cf;
+  --text-64748b: #59687d;
+  --text-665cf6: #5b52dd;
+  --text-667085: #5d677a;
+  --text-92400e: #92400e;
+  --text-93370d: #93370d;
+  --text-94a3b8: #5d6673;
+  --text-98a2b3: #616772;
+  --text-b42318: #b42318;
+  --text-b54708: #b54708;
+  --text-b91c1c: #b91c1c;
+  --text-c2410c: #c2410c;
+  --text-d0d5dd: #d0d5dd;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg-2a78d6: #3987e5;
+  --bg-cbd5e1: #475467;
+  --bg-dcfce7: #12301f;
+  --bg-e0e7ff: #2c3463;
+  --bg-e0f2fe: #0f2a3d;
+  --bg-e2e8f0: #2a3241;
+  --bg-eb6834: #d95926;
+  --bg-ecfdf3: #12301f;
+  --bg-ede9fe: #2b2550;
+  --bg-eef2ff: #252b4d;
+  --bg-f1f5f9: #1d2433;
+  --bg-f2f4f7: #232a39;
+  --bg-f4f1ff: #262347;
+  --bg-f4f7fb: #0d1117;
+  --bg-f4f7fc: #0d1117;
+  --bg-f5f7fb: #0d1117;
+  --bg-f5f7ff: #1f2540;
+  --bg-f8fafc: #1d2433;
+  --bg-f9fafb: #1d2433;
+  --bg-fcfcfd: #1a202c;
+  --bg-fee2e2: #3b1c1f;
+  --bg-fef0c7: #3a2c10;
+  --bg-fef3c7: #33270f;
+  --bg-ffedd5: #3a2410;
+  --bg-fff5f5: #2c1a1c;
+  --bg-fffaeb: #2a2210;
+  --bg-ffffff: #161b26;
+  --border-818cf8: #5b67c9;
+  --border-abefc6: #1f5133;
+  --border-c7d2fe: #3f4a8a;
+  --border-d0d5dd: #344054;
+  --border-dbe2ea: #344054;
+  --border-e2e8f0: #262e3d;
+  --border-e4e7ec: #344054;
+  --border-eaecf0: #262e3d;
+  --border-eef2f6: #262e3d;
+  --border-f2f4f7: #262e3d;
+  --border-fdb022: #8a6418;
+  --border-fecaca: #6b2a2a;
+  --border-fedf89: #6b4d16;
+  --border-hairline: rgba(255, 255, 255, 0.1);
+  --fill-2a78d6: #3987e5;
+  --fill-eb6834: #d95926;
+  --stroke-2a78d6: #3987e5;
+  --stroke-c3c2b7: #475467;
+  --stroke-e1e0d9: #2a3241;
+  --stroke-eb6834: #d95926;
+  --stroke-ffffff: #161b26;
+  --text-054f31: #86efac;
+  --text-067647: #86efac;
+  --text-075985: #7dd3fc;
+  --text-0b0b0b: #f0efec;
+  --text-101828: #f2f4f7;
+  --text-166534: #86efac;
+  --text-172033: #f2f4f7;
+  --text-334155: #cbd2dc;
+  --text-344054: #cbd2dc;
+  --text-3730a3: #c7d2fe;
+  --text-4338ca: #c7d2fe;
+  --text-475467: #c0c8d4;
+  --text-475569: #c0c8d4;
+  --text-4f46e5: #a5b4fc;
+  --text-52514e: #c3c2b7;
+  --text-5547e8: #a5b4fc;
+  --text-5b21b6: #c4b5fd;
+  --text-6366f1: #a5b4fc;
+  --text-64748b: #9aa4b2;
+  --text-665cf6: #a5b4fc;
+  --text-667085: #9aa4b2;
+  --text-92400e: #f5b85a;
+  --text-93370d: #f5b85a;
+  --text-94a3b8: #8e98a9;
+  --text-98a2b3: #8e98a9;
+  --text-b42318: #fca5a5;
+  --text-b54708: #f5b85a;
+  --text-b91c1c: #fca5a5;
+  --text-c2410c: #f5b85a;
+  --text-d0d5dd: #475467;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg-2a78d6: #3987e5;
+    --bg-cbd5e1: #475467;
+    --bg-dcfce7: #12301f;
+    --bg-e0e7ff: #2c3463;
+    --bg-e0f2fe: #0f2a3d;
+    --bg-e2e8f0: #2a3241;
+    --bg-eb6834: #d95926;
+    --bg-ecfdf3: #12301f;
+    --bg-ede9fe: #2b2550;
+    --bg-eef2ff: #252b4d;
+    --bg-f1f5f9: #1d2433;
+    --bg-f2f4f7: #232a39;
+    --bg-f4f1ff: #262347;
+    --bg-f4f7fb: #0d1117;
+    --bg-f4f7fc: #0d1117;
+    --bg-f5f7fb: #0d1117;
+    --bg-f5f7ff: #1f2540;
+    --bg-f8fafc: #1d2433;
+    --bg-f9fafb: #1d2433;
+    --bg-fcfcfd: #1a202c;
+    --bg-fee2e2: #3b1c1f;
+    --bg-fef0c7: #3a2c10;
+    --bg-fef3c7: #33270f;
+    --bg-ffedd5: #3a2410;
+    --bg-fff5f5: #2c1a1c;
+    --bg-fffaeb: #2a2210;
+    --bg-ffffff: #161b26;
+    --border-818cf8: #5b67c9;
+    --border-abefc6: #1f5133;
+    --border-c7d2fe: #3f4a8a;
+    --border-d0d5dd: #344054;
+    --border-dbe2ea: #344054;
+    --border-e2e8f0: #262e3d;
+    --border-e4e7ec: #344054;
+    --border-eaecf0: #262e3d;
+    --border-eef2f6: #262e3d;
+    --border-f2f4f7: #262e3d;
+    --border-fdb022: #8a6418;
+    --border-fecaca: #6b2a2a;
+    --border-fedf89: #6b4d16;
+    --border-hairline: rgba(255, 255, 255, 0.1);
+    --fill-2a78d6: #3987e5;
+    --fill-eb6834: #d95926;
+    --stroke-2a78d6: #3987e5;
+    --stroke-c3c2b7: #475467;
+    --stroke-e1e0d9: #2a3241;
+    --stroke-eb6834: #d95926;
+    --stroke-ffffff: #161b26;
+    --text-054f31: #86efac;
+    --text-067647: #86efac;
+    --text-075985: #7dd3fc;
+    --text-0b0b0b: #f0efec;
+    --text-101828: #f2f4f7;
+    --text-166534: #86efac;
+    --text-172033: #f2f4f7;
+    --text-334155: #cbd2dc;
+    --text-344054: #cbd2dc;
+    --text-3730a3: #c7d2fe;
+    --text-4338ca: #c7d2fe;
+    --text-475467: #c0c8d4;
+    --text-475569: #c0c8d4;
+    --text-4f46e5: #a5b4fc;
+    --text-52514e: #c3c2b7;
+    --text-5547e8: #a5b4fc;
+    --text-5b21b6: #c4b5fd;
+    --text-6366f1: #a5b4fc;
+    --text-64748b: #9aa4b2;
+    --text-665cf6: #a5b4fc;
+    --text-667085: #9aa4b2;
+    --text-92400e: #f5b85a;
+    --text-93370d: #f5b85a;
+    --text-94a3b8: #8e98a9;
+    --text-98a2b3: #8e98a9;
+    --text-b42318: #fca5a5;
+    --text-b54708: #f5b85a;
+    --text-b91c1c: #fca5a5;
+    --text-c2410c: #f5b85a;
+    --text-d0d5dd: #475467;
+  }
+}
+
 :root {
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  color: #172033;
-  background: #f4f7fb;
+  color: var(--text-172033);
+  background: var(--bg-f4f7fb);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -11,7 +267,7 @@
 html {
   min-width: 320px;
   min-height: 100%;
-  background: #f4f7fb;
+  background: var(--bg-f4f7fb);
 }
 
 body {

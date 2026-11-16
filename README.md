@@ -106,6 +106,10 @@ changed what.
   to the new address (see [Changing your email](#changing-your-email)).
   Changing your password signs out your other devices. Only admins change
   roles.
+- **Dark mode:** the app follows the device's light or dark setting. On the
+  Account page, **Appearance** lets each person choose Light, Dark or System;
+  it's remembered in that browser. Charts use colour steps checked for the
+  dark background, and text meets WCAG AA contrast (4.5:1) in both themes.
 - **Sign-in and roles:** session-based sign-in. Reporters, agents and admins
   each get different permissions (see [Roles](#roles)).
 - **Forgot password?** When email is set up, the sign-in page offers a reset

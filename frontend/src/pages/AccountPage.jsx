@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar'
 import EmailPreferences from '../components/EmailPreferences'
 import ChangeEmail from '../components/ChangeEmail'
 import SavedRepliesManager from '../components/SavedRepliesManager'
+import ThemeSettings from '../components/ThemeSettings'
 import { canWorkIncidents, isAdmin } from '../utils/roles'
 import { useCurrentUser } from '../context/currentUserContext'
 import {
@@ -187,6 +188,8 @@ function AccountPage() {
         <ChangeEmail currentEmail={currentUser.email} onChanged={handleDetailsChanged} />
 
         <EmailPreferences email={currentUser.email} />
+
+        <ThemeSettings />
 
         {canWorkIncidents(currentUser) && <SavedRepliesManager admin={isAdmin(currentUser)} />}
 
