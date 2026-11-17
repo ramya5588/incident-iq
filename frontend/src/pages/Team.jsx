@@ -13,11 +13,13 @@ import {
   sendPasswordResetLink,
   getPasswordResetAvailability,
   updateUserDetails,
+  unlockUser,
 } from '../services/incidentApi'
 import BusinessHoursSettings from '../components/BusinessHoursSettings'
 import { useCurrentUser } from '../context/currentUserContext'
 import { initials } from '../utils/initials'
 import { isAdmin } from '../utils/roles'
+import { useNow } from '../hooks/useNow'
 
 const ROLE_OPTIONS = [
   { value: 'USER', label: 'User' },
@@ -33,6 +35,12 @@ const EMPTY_MEMBER = { displayName: '', email: '', role: 'AGENT', password: '' }
  * and deactivate or reactivate. Only one of those panels is open at a time.
  */
 function MemberRow({ user, activeCount, admin, isYou, canEmailReset, onUpdated }) {
+  const now = useNow()
+  // Locks clear themselves; only show one that's still in force.
+  const locked = user.lockedUntil != null && Date.parse(user.lockedUntil) > now
+  const lockedUntilText = locked
+    ? new Date(user.lockedUntil).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    : ''
   const [role, setRole] = useState(user.role)
   const [savingRole, setSavingRole] = useState(false)
   const [panel, setPanel] = useState(null) // 'edit' | 'reset' | 'deactivate'
@@ -151,6 +159,14 @@ function MemberRow({ user, activeCount, admin, isYou, canEmailReset, onUpdated }
     }, 'Unable to deactivate this member.')
   }
 
+  function unlock() {
+    run(async () => {
+      const updated = await unlockUser(user.id)
+      onUpdated(updated)
+      setMessage(`${updated.displayName} can sign in again.`)
+    }, 'Unable to unlock this member.')
+  }
+
   function reactivate() {
     run(async () => {
       const updated = await reactivateUser(user.id)
@@ -170,6 +186,11 @@ function MemberRow({ user, activeCount, admin, isYou, canEmailReset, onUpdated }
             {user.displayName}
             {isYou && <small className="you-tag">You</small>}
             {!active && <small className="inactive-tag">Deactivated</small>}
+            {active && locked && (
+              <small className="locked-tag" title={`Too many failed sign-ins. Locked until ${lockedUntilText}.`}>
+                Locked until {lockedUntilText}
+              </small>
+            )}
           </strong>
         </span>
         <span className="member-email">{user.email}</span>
@@ -233,6 +254,17 @@ function MemberRow({ user, activeCount, admin, isYou, canEmailReset, onUpdated }
                 >
                   Edit
                 </button>
+                {locked && (
+                  <button
+                    type="button"
+                    className="secondary-button small-button"
+                    onClick={unlock}
+                    disabled={busy}
+                    aria-label={`Unlock ${user.displayName}`}
+                  >
+                    {busy ? 'Unlocking...' : 'Unlock'}
+                  </button>
+                )}
                 {isYou ? (
                   <Link className="secondary-button small-button" to="/account">
                     Change password

@@ -3039,6 +3039,18 @@ a.signed-in-as.active strong {
   grid-template-columns: 1.4fr 1.6fr 1.2fr 0.6fr 1.5fr;
 }
 
+/* Sign-in lockout on the Team page */
+.locked-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--bg-fef0c7);
+  color: var(--text-93370d);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 /* Appearance */
 .visually-hidden {
   position: absolute;

@@ -49,6 +49,15 @@ public class UserController {
         return ResponseEntity.created(location).body(response);
     }
 
+    /** Admin only (SecurityConfig): lift a sign-in lockout. */
+    @PostMapping("/{userId}/unlock")
+    public UserResponse unlock(
+            @PathVariable UUID userId,
+            @AuthenticationPrincipal AppUserPrincipal admin) {
+
+        return service.unlock(userId, admin.id());
+    }
+
     /** Admin only (SecurityConfig). */
     @PatchMapping("/{userId}")
     public UserResponse updateUser(

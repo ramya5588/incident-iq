@@ -44,6 +44,7 @@ public class ProfileService {
     private final ApplicationEventPublisher events;
     private final Clock clock;
     private final Duration linkLifetime;
+    private final SignInGuard guard;
 
     public ProfileService(
             UserAccountRepository users,
@@ -52,7 +53,8 @@ public class ProfileService {
             EmailSettings emailSettings,
             ApplicationEventPublisher events,
             Clock clock,
-            @Value("${incidentiq.auth.email-change-link-lifetime:24h}") Duration linkLifetime) {
+            @Value("${incidentiq.auth.email-change-link-lifetime:24h}") Duration linkLifetime,
+            SignInGuard guard) {
 
         this.users = users;
         this.requests = requests;
@@ -61,6 +63,7 @@ public class ProfileService {
         this.events = events;
         this.clock = clock;
         this.linkLifetime = linkLifetime;
+        this.guard = guard;
     }
 
     private Instant now() {
@@ -87,8 +90,10 @@ public class ProfileService {
     @Transactional
     public EmailChangeResult requestEmailChange(UUID userId, String newEmail, String currentPassword) {
         UserAccount user = findUser(userId);
+        guard.checkNotLocked(user);
         if (user.getPasswordHash() == null
                 || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            guard.recordFailure(user);
             throw new AccountRuleException("Your current password is incorrect.");
         }
 

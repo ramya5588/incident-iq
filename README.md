@@ -112,6 +112,9 @@ changed what.
   dark background, and text meets WCAG AA contrast (4.5:1) in both themes.
 - **Sign-in and roles:** session-based sign-in. Reporters, agents and admins
   each get different permissions (see [Roles](#roles)).
+- **Sign-in protection:** after 5 wrong passwords in 15 minutes an account is
+  locked for 15 minutes, and too many failures from one address are refused
+  for a while (see [Sign-in protection](#sign-in-protection)).
 - **Forgot password?** When email is set up, the sign-in page offers a reset
   link by email, and admins can email a member a link from the Team page
   instead of choosing a password for them (see
@@ -533,6 +536,7 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 | `PATCH /users/{id}` | admin | Edit a member's name and/or email (`{ displayName, email }`); emails stay unique |
 | `POST /users/{id}/deactivate` | admin | End a member's access (`{ unassignOpenIncidents }`); returns `{ user, unassignedIncidents }` |
 | `POST /users/{id}/reactivate` | admin | Restore a deactivated member |
+| `POST /users/{id}/unlock` | admin | Lift a sign-in lockout |
 | `PATCH /users/{id}/role` | admin | Change a member's role (`{ role }`); the last admin can't be demoted |
 | `PUT /users/{id}/password` | admin | Reset a member's password (`{ newPassword }`) |
 | `POST /users/{id}/password-reset-link` | admin | Email a member a reset link |
@@ -559,6 +563,32 @@ an `X-XSRF-TOKEN` header. axios does this automatically.
 - **The CSV** is UTF-8 for Excel, with times in the viewer's time zone. Text
   that starts like a spreadsheet formula (`=`, `+`, `-`, `@`) is prefixed with
   `'` so opening the file can't run it.
+
+## Sign-in protection
+
+- **Per account:** 5 wrong passwords within 15 minutes lock the account for
+  15 minutes. While it's locked even the right password is refused, with
+  "Too many failed sign-ins. Try again in N minutes, or reset your password".
+  The lock clears itself.
+- **Per address:** 20 failed sign-ins from one IP address within 15 minutes,
+  for any accounts, are refused for a while ("Too many failed sign-ins from
+  your network"). This stops one password being tried against every account.
+  Behind a proxy, set `server.forward-headers-strategy` (the prod profile
+  does) so the real address is used.
+- **No hints:** an email that has no account is locked out exactly like a real
+  one, so the messages never reveal who has an account.
+- **Telling people:** when an account locks and email is set up, its owner is
+  emailed "Someone tried to sign in to your IncidentIQ account", with a link
+  to choose a new password.
+- **Unlocking:**
+  - Any new password unlocks the account: a "Forgot password?" reset, an admin
+    reset, or changing your own.
+  - Admins see **Locked until …** on the Team page, with an **Unlock** button.
+- **Signed in too:** a wrong current password when changing your password or
+  email counts toward the same limit.
+- **Storage:** account locks are stored in the database. The per-address counts
+  and unknown-email locks are kept in memory, so they reset when the backend
+  restarts.
 
 ## Internal notes
 

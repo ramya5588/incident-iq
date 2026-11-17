@@ -41,17 +41,20 @@ public class AuthController {
     private final SecurityContextRepository securityContextRepository;
     private final UserAccountRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SignInGuard guard;
 
     public AuthController(
             AuthenticationManager authenticationManager,
             SecurityContextRepository securityContextRepository,
             UserAccountRepository userRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            SignInGuard guard) {
 
         this.authenticationManager = authenticationManager;
         this.securityContextRepository = securityContextRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.guard = guard;
     }
 
     @PostMapping("/login")
@@ -60,16 +63,24 @@ public class AuthController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
 
+        String address = httpRequest.getRemoteAddr();
+        // Locked accounts (and busy addresses) are refused before the password is checked.
+        guard.checkAllowed(request.email(), address);
+
         Authentication authentication;
         try {
             authentication = authenticationManager.authenticate(
                     UsernamePasswordAuthenticationToken.unauthenticated(
                             request.email().trim(), request.password()));
         } catch (AuthenticationException exception) {
+            guard.recordFailure(request.email(), address);
+            // If that failure locked it, say so now rather than on the next try.
+            guard.checkAllowed(request.email(), address);
             // Same answer for unknown email and wrong password.
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new AuthError("Incorrect email or password."));
         }
+        guard.recordSuccess(request.email());
 
         // New session id on sign-in to prevent session fixation.
         HttpSession existing = httpRequest.getSession(false);
@@ -115,8 +126,14 @@ public class AuthController {
             HttpServletResponse httpResponse) {
 
         UserAccount user = userRepository.findById(principal.id()).orElse(null);
+        if (user != null) {
+            guard.checkNotLocked(user);
+        }
         if (user == null || user.getPasswordHash() == null
                 || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            if (user != null) {
+                guard.recordFailure(user);
+            }
             return ResponseEntity.badRequest()
                     .body(new AuthError("Your current password is incorrect."));
         }

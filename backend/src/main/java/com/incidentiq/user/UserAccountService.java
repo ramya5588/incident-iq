@@ -169,6 +169,17 @@ public class UserAccountService {
         return UserResponse.from(user);
     }
 
+    /** Admin: lifts a sign-in lockout straight away. */
+    @Transactional
+    public UserResponse unlock(UUID userId, UUID adminId) {
+        UserAccount user = findUser(userId);
+        if (user.clearFailedSignIns()) {
+            repository.saveAndFlush(user);
+            log.info("Admin {} unlocked sign-in for user {}", adminId, userId);
+        }
+        return UserResponse.from(user);
+    }
+
     /** Sets a new password; the member's existing sessions are signed out. */
     @Transactional
     public void resetPassword(UUID userId, String newPassword, UUID adminId) {

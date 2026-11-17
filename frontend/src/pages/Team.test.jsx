@@ -9,6 +9,7 @@ import {
   reactivateUser,
   sendPasswordResetLink,
   updateUserDetails,
+  unlockUser,
 } from '../services/incidentApi'
 import { USERS, renderPage } from '../test/render'
 
@@ -31,6 +32,7 @@ vi.mock('../services/incidentApi', async (importOriginal) => ({
     holidays: [],
   }),
   sendPasswordResetLink: vi.fn(),
+  unlockUser: vi.fn(),
 }))
 
 const member = (overrides) => ({ active: true, deactivatedAt: null, ...overrides })
@@ -188,5 +190,49 @@ describe('Team page member management', () => {
         'Reset link sent to alex@incidentiq.test. It works once and expires in 30 minutes.'
       )
     ).toBeInTheDocument()
+  })
+})
+
+describe('Team page sign-in lockout', () => {
+  const inAWhile = new Date(Date.now() + 10 * 60 * 1000).toISOString()
+  const earlier = new Date(Date.now() - 60 * 1000).toISOString()
+
+  beforeEach(() => {
+    getWorkload.mockReset().mockResolvedValue([])
+    unlockUser.mockReset()
+  })
+
+  it('shows a locked member and lets an admin unlock them', async () => {
+    getUsers.mockReset().mockResolvedValue([member({ ...USERS.admin }), member({ ...USERS.agent, lockedUntil: inAWhile })])
+    unlockUser.mockResolvedValue(member({ ...USERS.agent, lockedUntil: null }))
+    const user = userEvent.setup()
+    renderPage(<Team />, { currentUser: USERS.admin })
+
+    await screen.findByText('Alex Agent')
+    const row = rowFor('Alex Agent')
+    expect(within(row).getByText(/^Locked until/)).toBeInTheDocument()
+    await user.click(within(row).getByRole('button', { name: 'Unlock Alex Agent' }))
+
+    expect(unlockUser).toHaveBeenCalledWith('u-agent')
+    expect(await screen.findByText('Alex Agent can sign in again.')).toBeInTheDocument()
+    expect(within(rowFor('Alex Agent')).queryByText(/^Locked until/)).not.toBeInTheDocument()
+  })
+
+  it('ignores locks that have already run out', async () => {
+    getUsers.mockReset().mockResolvedValue([member({ ...USERS.admin }), member({ ...USERS.agent, lockedUntil: earlier })])
+    renderPage(<Team />, { currentUser: USERS.admin })
+
+    await screen.findByText('Alex Agent')
+    expect(within(rowFor('Alex Agent')).queryByText(/^Locked until/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Unlock Alex Agent' })).not.toBeInTheDocument()
+  })
+
+  it('shows agents the lock without the Unlock button', async () => {
+    getUsers.mockReset().mockResolvedValue([member({ ...USERS.admin, lockedUntil: inAWhile }), member({ ...USERS.agent })])
+    renderPage(<Team />, { currentUser: USERS.agent })
+
+    await screen.findByText('Ada Admin')
+    expect(within(rowFor('Ada Admin')).getByText(/^Locked until/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Unlock/ })).not.toBeInTheDocument()
   })
 })

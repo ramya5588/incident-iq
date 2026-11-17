@@ -55,6 +55,20 @@ describe('SignInPage', () => {
     expect(onSignedIn).not.toHaveBeenCalled()
   })
 
+  it('explains a sign-in lockout', async () => {
+    signIn.mockRejectedValue({
+      response: {
+        status: 429,
+        data: { message: 'Too many failed sign-ins. Try again in 15 minutes, or reset your password with "Forgot password?".' },
+      },
+    })
+    render(<SignInPage onSignedIn={vi.fn()} />)
+
+    await submit('ada@incidentiq.test', 'wrong-password')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Try again in 15 minutes')
+  })
+
   it('explains when the server cannot be reached', async () => {
     signIn.mockRejectedValue(new Error('Network Error'))
     render(<SignInPage onSignedIn={vi.fn()} />)

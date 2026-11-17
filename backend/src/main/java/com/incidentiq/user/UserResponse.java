@@ -11,7 +11,8 @@ public record UserResponse(
         boolean active,
         Instant deactivatedAt,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        Instant lockedUntil) {
 
     public static UserResponse from(UserAccount user) {
         return new UserResponse(
@@ -22,6 +23,7 @@ public record UserResponse(
                 user.isActive(),
                 user.getDeactivatedAt(),
                 user.getCreatedAt(),
-                user.getUpdatedAt());
+                user.getUpdatedAt(),
+                user.getLockedUntil());
     }
 }

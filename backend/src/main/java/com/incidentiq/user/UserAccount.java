@@ -59,6 +59,16 @@ public class UserAccount {
     @Column(name = "email_on_mentioned", nullable = false)
     private boolean emailOnMentioned = true;
 
+    // Sign-in lockout (see SignInGuard).
+    @Column(name = "failed_sign_ins", nullable = false)
+    private int failedSignIns;
+
+    @Column(name = "first_failed_sign_in_at")
+    private Instant firstFailedSignInAt;
+
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -122,6 +132,7 @@ public class UserAccount {
     /** Takes an already-encoded hash, never a raw password. */
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+        clearFailedSignIns();
     }
 
     public boolean isActive() {
@@ -174,6 +185,40 @@ public class UserAccount {
         this.emailOnCommented = commented;
         this.emailOnStatusChanged = statusChanged;
         this.emailOnSlaBreached = slaBreached;
+    }
+
+    /**
+     * Counts a failed sign-in. After {@code max} within {@code window} the
+     * account is locked for {@code lock} and counting starts again.
+     *
+     * @return true if this failure locked the account
+     */
+    public boolean recordFailedSignIn(Instant now, java.time.Duration window, int max, java.time.Duration lock) {
+        if (firstFailedSignInAt == null || !firstFailedSignInAt.isAfter(now.minus(window))) {
+            firstFailedSignInAt = now;
+            failedSignIns = 0;
+        }
+        failedSignIns++;
+        if (failedSignIns >= max) {
+            lockedUntil = now.plus(lock);
+            failedSignIns = 0;
+            firstFailedSignInAt = null;
+            return true;
+        }
+        return false;
+    }
+
+    /** After a successful sign-in, an admin unlock or a new password. @return whether anything changed */
+    public boolean clearFailedSignIns() {
+        boolean changed = failedSignIns != 0 || firstFailedSignInAt != null || lockedUntil != null;
+        failedSignIns = 0;
+        firstFailedSignInAt = null;
+        lockedUntil = null;
+        return changed;
+    }
+
+    public Instant getLockedUntil() {
+        return lockedUntil;
     }
 
     public Instant getCreatedAt() {

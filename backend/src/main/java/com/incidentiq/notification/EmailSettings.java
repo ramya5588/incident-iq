@@ -39,6 +39,10 @@ public class EmailSettings {
         return appUrl + "/incidents/" + incidentId;
     }
 
+    public String forgotPasswordLink() {
+        return appUrl + "/forgot-password";
+    }
+
     public String accountLink() {
         return appUrl + "/account";
     }

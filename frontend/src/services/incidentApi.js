@@ -158,6 +158,12 @@ export async function deactivateUser(userId, unassignOpenIncidents) {
 }
 
 /** Admin only. */
+/** Admin: lift a sign-in lockout. Returns the member. */
+export async function unlockUser(userId) {
+    const response = await api.post(`/users/${userId}/unlock`)
+    return response.data
+}
+
 export async function reactivateUser(userId) {
     const response = await api.post(`/users/${userId}/reactivate`)
     return response.data
